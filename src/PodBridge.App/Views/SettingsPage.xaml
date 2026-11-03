@@ -41,6 +41,60 @@
 
             <Border Style="{StaticResource CardBorderStyle}">
                 <StackPanel Spacing="12">
+                    <TextBlock Text="Ear detection" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <ToggleSwitch x:Name="AutoPauseToggle" Header="Pause media when an earbud comes out"
+                                  OnContent="On" OffContent="Off" Toggled="Setting_Changed" />
+                    <ToggleSwitch x:Name="ResumeToggle" Header="Resume when the earbuds go back in (only if PodBridge paused it)"
+                                  OnContent="On" OffContent="Off" Toggled="Setting_Changed" />
+                    <ToggleSwitch x:Name="OneBudToggle" Header="I usually wear only one earbud"
+                                  OnContent="On" OffContent="Off" Toggled="Setting_Changed" />
+                    <TextBlock TextWrapping="Wrap" Opacity="0.6" Style="{StaticResource CaptionTextBlockStyle}"
+                               Text="Needs a player that supports Windows media controls (Spotify, browsers, Windows Media Player and most others do). Changes must last about 1.5 seconds to count." />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Audio output" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <TextBox x:Name="NameMatchBox" Header="Headphone name match" MaxLength="60"
+                             PlaceholderText="AirPods" LostFocus="NameMatchBox_LostFocus" />
+                    <TextBlock TextWrapping="Wrap" Opacity="0.6" Style="{StaticResource CaptionTextBlockStyle}"
+                               Text="PodBridge finds your AirPods' audio device by looking for this text in its name (for example the name you gave your AirPods)." />
+                    <ToggleSwitch x:Name="AutoSwitchToggle" Header="Switch to my speakers when both earbuds are out, and back when one goes in"
+                                  OnContent="On" OffContent="Off" Toggled="Setting_Changed" />
+                    <ComboBox x:Name="FallbackCombo" Header="Speakers to switch to" MinWidth="280"
+                              SelectionChanged="FallbackCombo_SelectionChanged" />
+                    <ToggleSwitch x:Name="OutputPopupToggle" Header="Show a volume pop-up when the output changes"
+                                  OnContent="On" OffContent="Off" Toggled="Setting_Changed" />
+                    <ToggleSwitch x:Name="KeepAliveToggle" Header="Keep the AirPods awake with inaudible silence"
+                                  OnContent="On" OffContent="Off" Toggled="Setting_Changed" />
+                    <TextBlock TextWrapping="Wrap" Opacity="0.6" Style="{StaticResource CaptionTextBlockStyle}"
+                               Text="Keep-awake stops the first moment of a sound from being cut off. It plays only while the AirPods are your output." />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Shortcuts" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <ToggleSwitch x:Name="HotkeysToggle" Header="Use global keyboard shortcuts"
+                                  OnContent="On" OffContent="Off" Toggled="Setting_Changed" />
+                    <TextBox x:Name="ConnectHotkeyBox" Header="Connect / disconnect AirPods" IsReadOnly="True"
+                             PlaceholderText="Click here, then press a shortcut"
+                             PreviewKeyDown="HotkeyBox_PreviewKeyDown" />
+                    <TextBlock x:Name="ConnectHotkeyStatus" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="Collapsed" />
+                    <TextBox x:Name="SwitchHotkeyBox" Header="Switch output (AirPods / speakers)" IsReadOnly="True"
+                             PlaceholderText="Click here, then press a shortcut"
+                             PreviewKeyDown="HotkeyBox_PreviewKeyDown" />
+                    <TextBlock x:Name="SwitchHotkeyStatus" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource SystemFillColorCriticalBrush}" Visibility="Collapsed" />
+                    <TextBlock TextWrapping="Wrap" Opacity="0.6" Style="{StaticResource CaptionTextBlockStyle}"
+                               Text="Use Ctrl, Alt or Win with a key. Press Backspace in a box to clear it." />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}">
+                <StackPanel Spacing="12">
                     <TextBlock Text="General" Style="{StaticResource BodyStrongTextBlockStyle}" />
                     <ToggleSwitch x:Name="StartupToggle" Header="Start PodBridge with Windows"
                                   OnContent="On" OffContent="Off" Toggled="Setting_Changed" />

@@ -24,6 +24,20 @@
             </Border>
 
             <Border Style="{StaticResource CardBorderStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Audio" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <TextBlock x:Name="AudioStatusText" TextWrapping="Wrap" Opacity="0.8" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click" />
+                        <Button x:Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click" />
+                        <Button x:Name="SwitchOutputButton" Content="Switch output" Click="SwitchOutputButton_Click" />
+                    </StackPanel>
+                    <TextBlock x:Name="AudioMessageText" TextWrapping="Wrap" Opacity="0.7"
+                               Style="{StaticResource CaptionTextBlockStyle}" />
+                </StackPanel>
+            </Border>
+
+            <Border Style="{StaticResource CardBorderStyle}">
                 <StackPanel Spacing="6">
                     <TextBlock Text="Tips" Style="{StaticResource BodyStrongTextBlockStyle}" />
                     <TextBlock TextWrapping="Wrap" Opacity="0.8"

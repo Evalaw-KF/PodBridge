@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="PodBridge.App.Views.OutputPopupWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid x:Name="RootGrid" Padding="20,16"
+          PointerEntered="RootGrid_PointerEntered"
+          PointerExited="RootGrid_PointerExited"
+          PointerMoved="RootGrid_PointerMoved">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
+            <FontIcon Glyph="&#xE767;" FontSize="16" VerticalAlignment="Center" />
+            <TextBlock x:Name="TitleText" Style="{StaticResource BodyStrongTextBlockStyle}"
+                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        </StackPanel>
+
+        <Grid Grid.Row="1" Margin="0,8,0,0" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Slider x:Name="VolumeSlider" Grid.Column="0" Minimum="0" Maximum="100" StepFrequency="1"
+                    VerticalAlignment="Center" ValueChanged="VolumeSlider_ValueChanged" />
+            <TextBlock x:Name="VolumeText" Grid.Column="1" MinWidth="40" TextAlignment="Right"
+                       VerticalAlignment="Center" Style="{StaticResource BodyTextBlockStyle}" />
+        </Grid>
+    </Grid>
+</Window>

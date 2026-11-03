@@ -127,7 +127,12 @@ public sealed class OutputSwitchPolicy
             : SwitchDecision.None;
     }
 
-    /// <summary>True when the keep-alive silence should be playing: wanted, and the AirPods are the default output.</summary>
+    /// <summary>
+    /// True when the keep-alive silence should be playing: wanted, and the AirPods music endpoint is the active default.
+    /// The call ("Headset") profile is excluded, because opening a stream on it could pull the earbuds into call mode.
+    /// </summary>
     public static bool ShouldKeepAlive(bool enabled, OutputContext ctx) =>
-        enabled && ctx.DefaultIsAirPods && ctx.Find(ctx.DefaultId) is { IsActive: true };
+        enabled && ctx.DefaultIsAirPods
+        && ctx.Find(ctx.DefaultId) is { IsActive: true } e
+        && !EndpointMatcher.LooksLikeHandsFree(e.Name);
 }

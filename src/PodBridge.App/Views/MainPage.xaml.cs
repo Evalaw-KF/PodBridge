@@ -20,6 +20,8 @@ public sealed partial class MainPage : Page
 
     private void Refresh()
     {
+        RefreshAudio();
+
         var snapshot = App.Host.Latest;
         if (snapshot is null)
         {
@@ -52,6 +54,23 @@ public sealed partial class MainPage : Page
         RightRow.Set("Right", snapshot.RightBattery, snapshot.RightCharging, snapshot.RightInEar ? "In ear" : null);
         CaseRow.Set("Case", snapshot.CaseBattery, snapshot.CaseCharging, snapshot.LidOpen ? "Lid open" : null);
     }
+
+    private void RefreshAudio()
+    {
+        var host = App.Host;
+        AudioStatusText.Text = host.AudioStatus;
+        AudioMessageText.Text = host.AudioMessage;
+        AudioMessageText.Visibility = string.IsNullOrEmpty(host.AudioMessage) ? Visibility.Collapsed : Visibility.Visible;
+        ConnectButton.IsEnabled = host.CanChangeConnection;
+        DisconnectButton.IsEnabled = host.CanChangeConnection;
+        SwitchOutputButton.IsEnabled = host.CanChangeConnection;
+    }
+
+    private void ConnectButton_Click(object sender, RoutedEventArgs e) => App.Host.RequestConnect();
+
+    private void DisconnectButton_Click(object sender, RoutedEventArgs e) => App.Host.RequestDisconnect();
+
+    private void SwitchOutputButton_Click(object sender, RoutedEventArgs e) => App.Host.RequestSwitchOutput();
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e) =>
         Frame.Navigate(typeof(SettingsPage));

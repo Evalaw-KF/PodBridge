@@ -48,10 +48,10 @@ public sealed class EarDetectionPolicy
 
         if (_stable is null)
         {
-            // The first reading is the starting point; it never triggers an action.
+            // The first reading is only the starting point: it triggers no action and is not reported as a change.
             _stable = budsInEar;
             _pending = null;
-            return new EarResult(EarAction.None, true, budsInEar);
+            return EarResult.Nothing(budsInEar);
         }
 
         if (budsInEar == _stable)
