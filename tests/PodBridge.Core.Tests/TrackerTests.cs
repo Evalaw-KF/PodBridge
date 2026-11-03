@@ -25,7 +25,7 @@ public class TrackerTests
         var tracker = new DeviceTracker();
         tracker.Update(Make(left: 80), -60, T0);
 
-        var weak = tracker.Update(Make(left: 10), -95, T0.AddSeconds(1));
+        var weak = tracker.Update(Make(left: 10), -110, T0.AddSeconds(1));
 
         Assert.False(weak.Accepted);
         Assert.Equal(80, tracker.Current!.LeftBattery);
@@ -36,7 +36,7 @@ public class TrackerTests
     public void Weak_first_packet_yields_no_snapshot()
     {
         var tracker = new DeviceTracker();
-        var result = tracker.Update(Make(), -100, T0);
+        var result = tracker.Update(Make(), -110, T0);
         Assert.False(result.Accepted);
         Assert.Null(tracker.Current);
     }
@@ -213,5 +213,32 @@ public class TrackerTests
         tracker.Update(Make(), -60, T0);
         tracker.Reset();
         Assert.Null(tracker.Current);
+    }
+
+    [Fact]
+    public void Alternating_B2_and_B3_frames_give_a_stable_left_in_ear_snapshot()
+    {
+        byte[] Frame(string hex)
+        {
+            var d = new byte[27];
+            Convert.FromHexString(hex).CopyTo(d, 0);
+            return d;
+        }
+        var b2 = Frame("0719012420" + "53AA913100" + "04");
+        var b3 = Frame("0719012420" + "33AAA11100" + "04");
+        var tracker = new DeviceTracker();
+
+        for (int i = 0; i < 6; i++)
+        {
+            var advert = Parse(i % 2 == 0 ? b2 : b3);
+            var snap = tracker.Update(advert, -98, T0.AddSeconds(i)).Snapshot!;
+            Assert.True(snap.LeftInEar);
+            Assert.False(snap.RightInEar);
+            Assert.True(snap.RightCharging);
+            Assert.False(snap.LeftCharging);
+            Assert.Equal(100, snap.LeftBattery);
+            Assert.Equal(100, snap.RightBattery);
+            Assert.Equal(10, snap.CaseBattery);
+        }
     }
 }

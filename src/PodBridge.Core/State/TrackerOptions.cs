@@ -2,8 +2,8 @@ namespace PodBridge.Core.State;
 
 public sealed class TrackerOptions
 {
-    /// <summary>Adverts with an RSSI below this (dBm) are ignored as unreliable. Default -90.</summary>
-    public int MinRssi { get; init; } = -90;
+    /// <summary>Adverts with an RSSI below this (dBm) are ignored as unreliable. Default -105 (real frames arrive at -95 to -101 dBm).</summary>
+    public int MinRssi { get; init; } = -105;
 
     /// <summary>How long a previously good value is kept when a later packet reports "unknown".</summary>
     public TimeSpan KeepLastGood { get; init; } = TimeSpan.FromSeconds(30);

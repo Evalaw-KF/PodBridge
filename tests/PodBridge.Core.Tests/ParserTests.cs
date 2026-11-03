@@ -109,10 +109,10 @@ public class ParserTests
     }
 
     [Theory]
-    [InlineData(0x02, false, true)]
-    [InlineData(0x08, true, false)]
+    [InlineData(0x02, true, false)]
+    [InlineData(0x08, false, true)]
     [InlineData(0x0A, true, true)]
-    public void In_ear_bits_swap_when_flipped(int bits, bool left, bool right)
+    public void In_ear_bits_do_not_swap_when_flipped(int bits, bool left, bool right)
     {
         var advert = Parse(Build(statusHigh: Flipped, inEarBits: (byte)bits));
         Assert.Equal(left, advert.LeftInEar);
@@ -294,5 +294,37 @@ public class ParserTests
             ProximityPairingParser.TryParse(data, out _);
             ProximityPairingParser.TryParseWithCompanyId(data, out _);
         }
+    }
+
+    private static byte[] Real(string hex)
+    {
+        var data = new byte[27];
+        var bytes = Convert.FromHexString(hex.Replace(" ", ""));
+        bytes.CopyTo(data, 0);
+        return data;
+    }
+
+    // Real adverts captured from AirPods Pro 2 USB-C (0x2420), padded to 27 bytes.
+    // Args: payload, leftCharging, rightCharging, leftInEar, rightInEar, bothInCase, caseBattery
+    [Theory]
+    [InlineData("07 19 01 24 20 55 AA B1 31 00 04", true, true, false, false, true, 10)]   // A1
+    [InlineData("07 19 01 24 20 35 AA B1 11 00 04", true, true, false, false, true, 10)]   // A2
+    [InlineData("07 19 01 24 20 51 AA 91 31 00 04", false, true, false, false, false, 10)] // B1
+    [InlineData("07 19 01 24 20 53 AA 91 31 00 04", false, true, true, false, false, 10)]  // B2
+    [InlineData("07 19 01 24 20 33 AA A1 11 00 04", false, true, true, false, false, 10)]  // B3
+    [InlineData("07 19 01 24 20 23 AA 8F 11 00 04", false, false, true, false, false, null)] // C1
+    [InlineData("07 19 01 24 20 2B AA 8F 11 00 04", false, false, true, true, false, null)]  // C2
+    public void Real_device_adverts(string hex, bool lc, bool rc, bool lear, bool rear, bool both, int? caseBattery)
+    {
+        var advert = Parse(Real(hex));
+        Assert.Equal(100, advert.LeftBattery);
+        Assert.Equal(100, advert.RightBattery);
+        Assert.Equal(lc, advert.LeftCharging);
+        Assert.Equal(rc, advert.RightCharging);
+        Assert.Equal(lear, advert.LeftInEar);
+        Assert.Equal(rear, advert.RightInEar);
+        Assert.Equal(both, advert.BothInCase);
+        Assert.True(advert.LidOpen);
+        Assert.Equal(caseBattery, advert.CaseBattery);
     }
 }

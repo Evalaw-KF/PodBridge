@@ -12,13 +12,17 @@ namespace PodBridge.Core.Bluetooth;
 ///  [3] model high byte \  big-endian model ID, e.g. 0x0E20
 ///  [4] model low byte  /
 ///  [5] status          bit 0x20 set = left bud is the broadcaster (not flipped);
-///                      bit 0x02 = broadcasting bud in ear, bit 0x08 = other bud in ear
+///                      bit 0x02 = LEFT bud in ear, bit 0x08 = RIGHT bud in ear (NOT swapped when flipped);
+///                      bit 0x04 = both buds in the case
 ///  [6] pod batteries   two nibbles, 0..10 = 0..100 %, 0xF = unknown
 ///  [7] charge + case   high nibble = charging bits, low nibble = case battery
 ///  [8] lid             bit 0x08 clear = lid open; low 3 bits are an open/close counter
 ///  [9] colour
 /// </code>
-/// Layout comes from public community reverse-engineering notes; see the README for caveats.
+/// The layout started from public community reverse-engineering notes (see the README for caveats).
+/// The in-ear finding (0x02 = left, 0x08 = right, independent of the flipped bit) and the 0x04
+/// "both in case" bit come from captured real-device adverts (AirPods Pro 2 USB-C, model 0x2420).
+/// Battery and charge nibbles DO swap with the flipped bit; the in-ear bits do not.
 /// </summary>
 public static class ProximityPairingParser
 {
@@ -30,10 +34,11 @@ public static class ProximityPairingParser
 
     // Status byte [5]
     private const byte NotFlippedBit = 0x20;
-    // In-ear bits are relative to the broadcasting bud, not to left/right.
-    // Not flipped (left broadcasts): 0x02 = left, 0x08 = right. Flipped: the other way round.
-    private const byte InEarBroadcasterBit = 0x02;
-    private const byte InEarOtherBit = 0x08;
+    // In-ear bits are absolute (captured real data): 0x02 = left, 0x08 = right, flipped or not.
+    private const byte InEarLeftBit = 0x02;
+    private const byte InEarRightBit = 0x08;
+    // Set only while both buds are in the case.
+    private const byte BothInCaseBit = 0x04;
 
     // Charge nibble (high nibble of byte [7])
     private const int ChargeLowBit = 0x1;
@@ -101,8 +106,9 @@ public static class ProximityPairingParser
         int inEar = status & 0x0F;
         // A bud that is charging is sitting in the case, whatever the in-ear bit says
         // (the bit has been seen set for buds in the case).
-        bool leftInEar = !leftCharging && (inEar & (flipped ? InEarOtherBit : InEarBroadcasterBit)) != 0;
-        bool rightInEar = !rightCharging && (inEar & (flipped ? InEarBroadcasterBit : InEarOtherBit)) != 0;
+        bool bothInCase = (status & BothInCaseBit) != 0;
+        bool leftInEar = !bothInCase && !leftCharging && (inEar & InEarLeftBit) != 0;
+        bool rightInEar = !bothInCase && !rightCharging && (inEar & InEarRightBit) != 0;
 
         advert = new ProximityAdvert
         {
@@ -118,6 +124,7 @@ public static class ProximityPairingParser
             CaseCharging = (chargeNibble & ChargeCaseBit) != 0,
             LeftInEar = leftInEar,
             RightInEar = rightInEar,
+            BothInCase = bothInCase,
             LidOpen = (lid & LidClosedBit) == 0,
         };
         return true;

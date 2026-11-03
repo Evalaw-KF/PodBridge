@@ -24,6 +24,9 @@ public sealed record ProximityAdvert
     public bool LeftInEar { get; init; }
     public bool RightInEar { get; init; }
 
+    /// <summary>Status bit 0x04: set only while both buds are in the case. Both buds are then reported not in ear.</summary>
+    public bool BothInCase { get; init; }
+
     public bool LidOpen { get; init; }
 
     /// <summary>True when the advert's primary bud is the right one, so nibbles were swapped to compensate.</summary>
