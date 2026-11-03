@@ -30,6 +30,13 @@ internal static class NativeMethods
     public const uint MF_STRING = 0x0000, MF_SEPARATOR = 0x0800;
     public const uint TPM_RIGHTBUTTON = 0x0002, TPM_RETURNCMD = 0x0100, TPM_BOTTOMALIGN = 0x0020;
 
+    // Hotkeys and keyboard
+    public const uint WM_HOTKEY = 0x0312;
+    public const uint MOD_NOREPEAT = 0x4000;
+    public const byte VK_MEDIA_PLAY_PAUSE = 0xB3;
+    public const uint KEYEVENTF_KEYUP = 0x0002;
+    public const int ERROR_HOTKEY_ALREADY_REGISTERED = 1409;
+
     // DWM
     public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
     public const int DWMWCP_ROUND = 2;
@@ -142,6 +149,15 @@ internal static class NativeMethods
 
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW")]
     public static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    public static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    [DllImport("user32.dll")]
+    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     public static extern IntPtr GetModuleHandleW(string? lpModuleName);

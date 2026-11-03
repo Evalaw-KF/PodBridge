@@ -13,7 +13,7 @@ internal sealed class TrayIcon : IDisposable
 {
     private const uint CallbackMessage = WM_APP + 1;
     private const uint IconId = 1;
-    private const int CmdOpen = 1, CmdSettings = 2, CmdExit = 3;
+    private const int CmdOpen = 1, CmdSettings = 2, CmdExit = 3, CmdConnect = 4, CmdDisconnect = 5, CmdSwitch = 6;
     private const string ClassName = "PodBridgeTrayWindow";
 
     private readonly WndProc _wndProc;   // field keeps the delegate alive for the native window
@@ -27,6 +27,15 @@ internal sealed class TrayIcon : IDisposable
     public event Action? OpenRequested;
     public event Action? SettingsRequested;
     public event Action? ExitRequested;
+    public event Action? ConnectRequested;
+    public event Action? DisconnectRequested;
+    public event Action? SwitchOutputRequested;
+
+    /// <summary>Raised for WM_HOTKEY; the argument is the hotkey id passed to RegisterHotKey.</summary>
+    public event Action<int>? HotkeyPressed;
+
+    /// <summary>The hidden window, which is also the target of RegisterHotKey.</summary>
+    public IntPtr Handle => _hwnd;
 
     public TrayIcon()
     {
@@ -114,6 +123,12 @@ internal sealed class TrayIcon : IDisposable
                 return IntPtr.Zero;
             }
 
+            if (msg == WM_HOTKEY)
+            {
+                HotkeyPressed?.Invoke((int)wParam.ToInt64());
+                return IntPtr.Zero;
+            }
+
             if (msg == _taskbarCreatedMessage && !_disposed)
             {
                 // Explorer restarted: the icon vanished, so add it again.
@@ -139,6 +154,10 @@ internal sealed class TrayIcon : IDisposable
             AppendMenuW(menu, MF_STRING, new UIntPtr(CmdOpen), "Open PodBridge");
             AppendMenuW(menu, MF_STRING, new UIntPtr(CmdSettings), "Settings");
             AppendMenuW(menu, MF_SEPARATOR, UIntPtr.Zero, null);
+            AppendMenuW(menu, MF_STRING, new UIntPtr(CmdConnect), "Connect AirPods");
+            AppendMenuW(menu, MF_STRING, new UIntPtr(CmdDisconnect), "Disconnect AirPods");
+            AppendMenuW(menu, MF_STRING, new UIntPtr(CmdSwitch), "Switch output (AirPods / speakers)");
+            AppendMenuW(menu, MF_SEPARATOR, UIntPtr.Zero, null);
             AppendMenuW(menu, MF_STRING, new UIntPtr(CmdExit), "Exit");
 
             GetCursorPos(out var pt);
@@ -152,6 +171,9 @@ internal sealed class TrayIcon : IDisposable
             {
                 case CmdOpen: OpenRequested?.Invoke(); break;
                 case CmdSettings: SettingsRequested?.Invoke(); break;
+                case CmdConnect: ConnectRequested?.Invoke(); break;
+                case CmdDisconnect: DisconnectRequested?.Invoke(); break;
+                case CmdSwitch: SwitchOutputRequested?.Invoke(); break;
                 case CmdExit: ExitRequested?.Invoke(); break;
             }
         }
