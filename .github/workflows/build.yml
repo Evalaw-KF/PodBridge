@@ -50,6 +50,23 @@ jobs:
           -p:Platform=${{ matrix.platform }}
           --output publish/win-${{ matrix.arch }}
 
+      - name: Check the published files
+        shell: pwsh
+        run: |
+          # Fail here, not on the user's PC, if the app folder is incomplete.
+          $dir = "publish/win-${{ matrix.arch }}"
+          $missing = @()
+          foreach ($f in @("PodBridge.exe", "PodBridge.dll", "PodBridge.Core.dll", "Microsoft.WinUI.dll",
+                           "Microsoft.ui.xaml.dll", "Microsoft.WindowsAppRuntime.dll", "coreclr.dll")) {
+            if (-not (Test-Path (Join-Path $dir $f))) { $missing += $f }
+          }
+          if (-not (Get-ChildItem -Path $dir -Filter *.pri)) { $missing += "*.pri (XAML resources)" }
+          if ($missing.Count -gt 0) {
+            Get-ChildItem $dir | Select-Object -ExpandProperty Name
+            throw "Published app is missing: $($missing -join ', ')"
+          }
+          "Published files look complete."
+
       - name: Add a short read-me to the zip
         shell: pwsh
         run: |
