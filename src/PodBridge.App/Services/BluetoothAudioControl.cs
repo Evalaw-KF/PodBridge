@@ -7,11 +7,16 @@ namespace PodBridge.App.Services;
 /// Connects and disconnects Bluetooth headphones' audio link.
 ///
 /// Windows has no public API for this. The Bluetooth audio driver answers two "one-shot" kernel-streaming
-/// properties (KSPROPSETID_BtAudio: KSPROPERTY_ONESHOT_RECONNECT and KSPROPERTY_ONESHOT_DISCONNECT).
-/// We reach it like this:
-///   endpoint (IMMDevice) -> IDeviceTopology -> its connector -> the connector it is wired to on the Bluetooth
-///   adapter's topology -> IPart::Activate(IKsControl) -> IKsControl::KsProperty.
+/// properties (KSPROPSETID_BtAudio: KSPROPERTY_ONESHOT_RECONNECT and KSPROPERTY_ONESHOT_DISCONNECT, both GET-only
+/// with no value buffer, see ksmedia.h and the WDK docs). We reach the driver's KS filter like this
+/// (the same path as the MIT-licensed ToothTray and the yasb Bluetooth widget):
+///   every endpoint of the headphones (same PKEY_Device_ContainerId: the music endpoint and the call endpoint)
+///   -> IDeviceTopology -> each connector -> IConnector::GetDeviceIdConnectedTo (the Bluetooth adapter's KS filter,
+///   "{2}.\\?\bthenum#..." or "...\bthhfenum#...") -> IMMDeviceEnumerator::GetDevice(that id)
+///   -> IMMDevice::Activate(IKsControl) -> IKsControl::KsProperty.
+/// The property is sent to every filter found, so both the music (A2DP) and the call (hands-free) links follow.
 /// This is undocumented behaviour: it may not work with every driver or Windows build.
+/// Runs on a worker thread; never throws.
 /// </summary>
 internal sealed class BluetoothAudioControl
 {
@@ -29,135 +34,125 @@ internal sealed class BluetoothAudioControl
 
     private string? Send(string endpointId, uint propertyId, string verb)
     {
-        IMMDevice? device = null;
-        object? topologyObject = null;
         try
         {
-            device = _audio.OpenDevice(endpointId);
-            var iid = AudioInterop.IID_IDeviceTopology;
-            device.Activate(ref iid, AudioInterop.CLSCTX_ALL, IntPtr.Zero, out topologyObject);
-            var topology = (IDeviceTopology)topologyObject;
+            var filters = FindBluetoothFilters(endpointId);
+            if (filters.Count == 0)
+            {
+                Log.Error($"Bluetooth {verb}: no Bluetooth audio filter found for endpoint {endpointId}");
+                return $"Could not reach the Bluetooth audio driver for this device, so PodBridge cannot {verb} it. Use the Bluetooth settings page instead.";
+            }
 
             int lastHr = 0;
-            bool foundControl = false;
-            foreach (var control in EnumerateControls(topology))
+            bool anySucceeded = false;
+            foreach (var filterId in filters)
             {
-                try
+                int hr = SendToFilter(filterId, propertyId);
+                if (hr >= 0)
                 {
-                    foundControl = true;
-                    // The one-shot properties carry no data, so they are sent as a GET with empty buffers.
-                    lastHr = Invoke(control, propertyId, AudioInterop.KSPROPERTY_TYPE_GET);
-                    if (lastHr < 0)
-                    {
-                        lastHr = Invoke(control, propertyId, AudioInterop.KSPROPERTY_TYPE_SET);
-                    }
-                    if (lastHr >= 0)
-                    {
-                        return null;
-                    }
+                    anySucceeded = true;
                 }
-                finally
+                else
                 {
-                    AudioInterop.Release(control);
+                    lastHr = hr;
+                    Log.Error($"Bluetooth {verb} refused by {filterId} (hr=0x{hr:X8})");
                 }
             }
 
-            Log.Error($"Bluetooth {verb} failed (hr=0x{lastHr:X8}, control found: {foundControl})");
-            return foundControl
-                ? $"Windows or the Bluetooth driver did not accept the {verb} request (error 0x{lastHr:X8}). Try the Bluetooth settings page instead."
-                : $"Could not reach the Bluetooth audio driver for this device, so PodBridge cannot {verb} it. Use the Bluetooth settings page instead.";
+            if (anySucceeded)
+            {
+                return null;
+            }
+            return $"Windows or the Bluetooth driver did not accept the {verb} request (error 0x{lastHr:X8}). Try the Bluetooth settings page instead.";
         }
-        catch (COMException ex)
+        catch (Exception ex)
         {
             Log.Error($"Bluetooth {verb} failed", ex);
             return $"Windows could not {verb} the headphones (error 0x{ex.HResult:X8}). Try the Bluetooth settings page instead.";
         }
-        catch (InvalidCastException ex)
+    }
+
+    /// <summary>Opens one KS filter and sends the one-shot property. Returns the HRESULT.</summary>
+    private int SendToFilter(string filterId, uint propertyId)
+    {
+        IMMDevice? device = null;
+        object? controlObject = null;
+        try
         {
-            Log.Error($"Bluetooth {verb} failed", ex);
-            return $"Windows did not expose the controls PodBridge needs to {verb} these headphones.";
+            device = _audio.OpenDevice(filterId);
+            var iid = AudioInterop.IID_IKsControl;
+            device.Activate(ref iid, AudioInterop.CLSCTX_ALL, IntPtr.Zero, out controlObject);
+            var control = (IKsControl)controlObject;
+
+            var property = new KsPropertyHeader
+            {
+                Set = AudioInterop.KSPROPSETID_BtAudio,
+                Id = propertyId,
+                Flags = AudioInterop.KSPROPERTY_TYPE_GET,
+            };
+            return control.KsProperty(ref property, (uint)Marshal.SizeOf<KsPropertyHeader>(), IntPtr.Zero, 0, out _);
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"Could not open the Bluetooth audio filter {filterId}", ex);
+            return ex.HResult < 0 ? ex.HResult : unchecked((int)0x80004005); // E_FAIL
         }
         finally
         {
-            AudioInterop.Release(topologyObject);
+            AudioInterop.Release(controlObject);
             AudioInterop.Release(device);
         }
     }
 
-    private static int Invoke(IKsControl control, uint propertyId, uint flags)
+    /// <summary>The distinct Bluetooth KS filter device ids wired to any endpoint of the same headphones.</summary>
+    private List<string> FindBluetoothFilters(string endpointId)
     {
-        var property = new KsPropertyHeader
+        var filters = new List<string>();
+        foreach (var id in _audio.FindSameDeviceEndpoints(endpointId))
         {
-            Set = AudioInterop.KSPROPSETID_BtAudio,
-            Id = propertyId,
-            Flags = flags,
-        };
-        return control.KsProperty(ref property, (uint)Marshal.SizeOf<KsPropertyHeader>(), IntPtr.Zero, 0, out _);
-    }
-
-    /// <summary>
-    /// Yields IKsControl objects to try, most likely first: the part the endpoint's connector is wired to,
-    /// then the other connectors of that adapter topology. The caller releases each one.
-    /// </summary>
-    private static IEnumerable<IKsControl> EnumerateControls(IDeviceTopology endpointTopology)
-    {
-        IConnector? endpointConnector = null;
-        IConnector? connectedTo = null;
-        IDeviceTopology? adapterTopology = null;
-        try
-        {
-            endpointTopology.GetConnector(0, out endpointConnector);
-            endpointConnector.GetConnectedTo(out connectedTo);
-
-            var primary = ActivateControl((IPart)connectedTo);
-            if (primary is not null)
+            IMMDevice? device = null;
+            object? topologyObject = null;
+            try
             {
-                yield return primary;
-            }
-
-            ((IPart)connectedTo).GetTopologyObject(out adapterTopology);
-            adapterTopology.GetConnectorCount(out uint count);
-            for (uint i = 0; i < count; i++)
-            {
-                IConnector? other = null;
-                try
+                device = _audio.OpenDevice(id);
+                var iid = AudioInterop.IID_IDeviceTopology;
+                device.Activate(ref iid, AudioInterop.CLSCTX_ALL, IntPtr.Zero, out topologyObject);
+                var topology = (IDeviceTopology)topologyObject;
+                topology.GetConnectorCount(out uint count);
+                for (uint i = 0; i < count; i++)
                 {
-                    adapterTopology.GetConnector(i, out other);
-                    var control = ActivateControl((IPart)other);
-                    if (control is not null)
+                    IConnector? connector = null;
+                    try
                     {
-                        yield return control;
+                        topology.GetConnector(i, out connector);
+                        connector.GetDeviceIdConnectedTo(out string otherId); // E_NOTFOUND if not wired: caught below
+                        if (!string.IsNullOrEmpty(otherId)
+                            && otherId.Contains(@"\\?\bth", StringComparison.OrdinalIgnoreCase) // bthenum / bthhfenum
+                            && !filters.Contains(otherId, StringComparer.OrdinalIgnoreCase))
+                        {
+                            filters.Add(otherId);
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        // Connector not connected to anything: skip it.
+                    }
+                    finally
+                    {
+                        AudioInterop.Release(connector);
                     }
                 }
-                finally
-                {
-                    AudioInterop.Release(other);
-                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Could not read the device topology of {id}", ex);
+            }
+            finally
+            {
+                AudioInterop.Release(topologyObject);
+                AudioInterop.Release(device);
             }
         }
-        finally
-        {
-            AudioInterop.Release(adapterTopology);
-            AudioInterop.Release(connectedTo);
-            AudioInterop.Release(endpointConnector);
-        }
-    }
-
-    private static IKsControl? ActivateControl(IPart part)
-    {
-        var iid = AudioInterop.IID_IKsControl;
-        int hr = part.Activate(AudioInterop.CLSCTX_ALL, ref iid, out IntPtr ptr);
-        if (hr < 0 || ptr == IntPtr.Zero)
-        {
-            return null;
-        }
-        try
-        {
-            return (IKsControl)Marshal.GetObjectForIUnknown(ptr);
-        }
-        finally
-        {
-            Marshal.Release(ptr); // GetObjectForIUnknown added its own reference
-        }
+        return filters;
     }
 }

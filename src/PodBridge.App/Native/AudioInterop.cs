@@ -250,19 +250,25 @@ internal static class AudioInterop
     public const uint DEVICE_STATE_DISABLED = 0x2;
     public const uint DEVICE_STATE_NOTPRESENT = 0x4;
     public const uint DEVICE_STATE_UNPLUGGED = 0x8;
+    public const uint DEVICE_STATEMASK_ALL = 0xF;
 
     public const uint STGM_READ = 0;
     public const ushort VT_LPWSTR = 31;
+    public const ushort VT_CLSID = 72;
     public const int AUDCLNT_SHAREMODE_SHARED = 0;
 
     public const uint KSPROPERTY_TYPE_GET = 0x1;
-    public const uint KSPROPERTY_TYPE_SET = 0x2;
 
     // PKEY_Device_FriendlyName {a45c254e-df1c-4efd-8020-67d146a850e0}, 14
     public static readonly PropertyKey PKEY_Device_FriendlyName =
         new(new Guid("A45C254E-DF1C-4EFD-8020-67D146A850E0"), 14);
 
-    // KSPROPSETID_BtAudio {7fa06c40-b8f6-4c7e-8556-e8c33a12e54d}
+    // PKEY_Device_ContainerId {8c7ed206-3f8a-4827-b3ab-ae9e1faefc6c}, 2 (VT_CLSID): groups the endpoints of one physical device.
+    public static readonly PropertyKey PKEY_Device_ContainerId =
+        new(new Guid("8C7ED206-3F8A-4827-B3AB-AE9E1FAEFC6C"), 2);
+
+    // KSPROPSETID_BtAudio {7fa06c40-b8f6-4c7e-8556-e8c33a12e54d} (ksmedia.h). Both properties are GET-only,
+    // with a plain KSPROPERTY and no value buffer (Microsoft docs: Get yes, Set no, value type NULL).
     public static readonly Guid KSPROPSETID_BtAudio = new("7FA06C40-B8F6-4C7E-8556-E8C33A12E54D");
     public const uint KSPROPERTY_ONESHOT_RECONNECT = 0;
     public const uint KSPROPERTY_ONESHOT_DISCONNECT = 1;
@@ -299,7 +305,37 @@ internal static class AudioInterop
                 PropVariantClear(ref value);
             }
         }
-        catch (COMException)
+        catch (Exception)
+        {
+            return null;
+        }
+        finally
+        {
+            Release(store);
+        }
+    }
+
+    /// <summary>Reads PKEY_Device_ContainerId of an endpoint, or null if it is missing.</summary>
+    public static Guid? ReadContainerId(IMMDevice device)
+    {
+        IPropertyStore? store = null;
+        try
+        {
+            device.OpenPropertyStore(STGM_READ, out store);
+            var key = PKEY_Device_ContainerId;
+            store.GetValue(ref key, out var value);
+            try
+            {
+                return value.Vt == VT_CLSID && value.Data1 != IntPtr.Zero
+                    ? Marshal.PtrToStructure<Guid>(value.Data1)
+                    : null;
+            }
+            finally
+            {
+                PropVariantClear(ref value);
+            }
+        }
+        catch (Exception)
         {
             return null;
         }
