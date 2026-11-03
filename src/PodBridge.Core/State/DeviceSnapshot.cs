@@ -8,6 +8,9 @@ public sealed record DeviceSnapshot
     public required AppleDeviceModel Model { get; init; }
     public required ushort RawModelId { get; init; }
 
+    /// <summary>Payload of the last accepted advert, for diagnostics.</summary>
+    public byte[] Raw { get; init; } = Array.Empty<byte>();
+
     public int? LeftBattery { get; init; }
     public int? RightBattery { get; init; }
     public int? CaseBattery { get; init; }

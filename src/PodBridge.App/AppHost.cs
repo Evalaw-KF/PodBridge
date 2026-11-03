@@ -20,6 +20,7 @@ internal sealed class AppHost
     private readonly SettingsStore _store = new(SettingsStore.DefaultDirectory());
     private readonly DeviceTracker _tracker = new();
     private readonly BleScanner _scanner = new();
+    private readonly AdvertLog _advertLog = new();
     private readonly NotificationService _notifications = new();
     private readonly LowBatteryMonitor _lowBattery;
 
@@ -38,6 +39,9 @@ internal sealed class AppHost
     public AppSettings Settings { get; private set; }
     public bool IsExiting { get; private set; }
     public string ScannerStatus { get; private set; } = "Starting…";
+
+    /// <summary>Recent distinct raw adverts, for the Diagnostics section in Settings.</summary>
+    public AdvertLog AdvertLog => _advertLog;
 
     /// <summary>The newest device state, or null if nothing has been heard recently.</summary>
     public DeviceSnapshot? Latest => _tracker.GetCurrent(DateTimeOffset.UtcNow);
@@ -89,6 +93,9 @@ internal sealed class AppHost
         {
             return;
         }
+
+        // Record before the tracker, which may reject the advert (for example a weak signal).
+        _advertLog.Record(advert, rssi);
 
         var update = _tracker.Update(advert, rssi, DateTimeOffset.UtcNow);
         if (!update.Accepted || update.Snapshot is null)

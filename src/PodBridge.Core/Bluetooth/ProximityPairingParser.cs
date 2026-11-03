@@ -106,6 +106,7 @@ public static class ProximityPairingParser
 
         advert = new ProximityAdvert
         {
+            Raw = data.ToArray(),
             RawModelId = modelId,
             Model = AppleDeviceCatalog.FromId(modelId),
             Flipped = flipped,

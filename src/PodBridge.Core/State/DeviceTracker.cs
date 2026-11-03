@@ -124,6 +124,7 @@ public sealed class DeviceTracker
         {
             Model = advert.Model,
             RawModelId = advert.RawModelId,
+            Raw = advert.Raw,
             LeftBattery = _left.Merge(incomingLeft, now, _options.KeepLastGood),
             RightBattery = _right.Merge(incomingRight, now, _options.KeepLastGood),
             CaseBattery = _case.Merge(incomingCase, now, _options.KeepLastGood),

@@ -53,6 +53,22 @@
                 </StackPanel>
             </Border>
 
+            <Border Style="{StaticResource CardBorderStyle}">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Diagnostics" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                    <TextBlock TextWrapping="Wrap" Opacity="0.7" Style="{StaticResource CaptionTextBlockStyle}"
+                               Text="The last distinct Bluetooth adverts (newest first): time, signal, raw bytes and the decoded status byte. Put an earbud in your ear and copy this if the in-ear status looks wrong." />
+                    <TextBox x:Name="AdvertText" IsReadOnly="True" AcceptsReturn="True"
+                             TextWrapping="NoWrap" FontFamily="Consolas" FontSize="11" Height="240"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                    <Button x:Name="CopyAdvertsButton" Content="Copy to clipboard"
+                            Click="CopyAdvertsButton_Click" />
+                    <TextBlock x:Name="AdvertFileText" TextWrapping="Wrap" Opacity="0.6" IsTextSelectionEnabled="True"
+                               Style="{StaticResource CaptionTextBlockStyle}" />
+                </StackPanel>
+            </Border>
+
             <TextBlock Opacity="0.6" TextWrapping="Wrap" Style="{StaticResource CaptionTextBlockStyle}"
                        Text="PodBridge works entirely offline. It only listens to Bluetooth broadcasts from nearby AirPods and Beats and never sends data anywhere." />
         </StackPanel>

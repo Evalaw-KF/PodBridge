@@ -1,7 +1,9 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using PodBridge.App.Services;
 using PodBridge.Core.Settings;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace PodBridge.App.Views;
 
@@ -21,7 +23,31 @@ public sealed partial class SettingsPage : Page
         ThresholdLabel.Text = $"Warn me at {s.LowBatteryThreshold}%";
         ThemeCombo.SelectedIndex = (int)s.Theme;
 
+        AdvertFileText.Text = $"Also saved to {AdvertLog.FilePath}";
+        Loaded += (_, _) =>
+        {
+            App.Host.AdvertLog.Changed += RefreshAdverts;
+            RefreshAdverts();
+        };
+        Unloaded += (_, _) => App.Host.AdvertLog.Changed -= RefreshAdverts;
+
         _loading = false;
+    }
+
+    private void RefreshAdverts() => AdvertText.Text = App.Host.AdvertLog.Text;
+
+    private void CopyAdvertsButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var package = new DataPackage();
+            package.SetText(App.Host.AdvertLog.Text);
+            Clipboard.SetContent(package);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not copy adverts to the clipboard", ex);
+        }
     }
 
     private void Save()

@@ -10,6 +10,9 @@ public sealed record ProximityAdvert
     public required ushort RawModelId { get; init; }
     public required AppleDeviceModel Model { get; init; }
 
+    /// <summary>The manufacturer payload as received (company ID already removed), for diagnostics.</summary>
+    public byte[] Raw { get; init; } = Array.Empty<byte>();
+
     public int? LeftBattery { get; init; }
     public int? RightBattery { get; init; }
     public int? CaseBattery { get; init; }
