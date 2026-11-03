@@ -80,7 +80,7 @@ When reporting an issue, say which Windows version and which AirPods or Beats mo
 ## Limitations
 
 - **Connect / Disconnect and switching the default output rely on undocumented Windows interfaces.** Windows has no public API for either. PodBridge uses the same hidden interfaces many sound-switching tools use (`IPolicyConfig` for the default device, and the Bluetooth audio driver's kernel-streaming "one-shot" properties for connect/disconnect). They work on current Windows 10 and 11, but a Windows update or a particular Bluetooth driver can break them. If they stop working, the rest of PodBridge keeps working.
-- **Auto-pause needs a media app that supports Windows media controls** (Spotify, Chrome, Edge, Firefox, Windows Media Player, VLC with its media-key option, and so on). If Windows knows of no media session at all, PodBridge falls back to sending the keyboard Play/Pause key, which cannot tell whether anything was playing.
+- **Auto-pause needs a media app that supports Windows media controls** (Spotify, Chrome, Edge, Firefox, Windows Media Player, VLC with its media-key option, and so on). If Windows knows of no media session at all, PodBridge does nothing rather than risk starting playback.
 - The *Keep-awake* silent stream shows up as "PodBridge" in the Windows volume mixer, and keeps the AirPods' audio link in use, which can cost a little battery.
 - Pausing, switching and the shortcuts need PodBridge to be running (it can start with Windows).
 

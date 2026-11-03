@@ -30,10 +30,9 @@ internal sealed class MediaControlService
         var sessions = manager.GetSessions();
         if (sessions.Count == 0)
         {
-            // Nothing registered with Windows: we cannot tell if audio is playing, so use the media key.
-            SendPlayPauseKey();
-            _pausedWithKey = true;
-            return true;
+            // Nothing registered with Windows: we cannot tell if audio is playing. Pressing the
+            // Play/Pause key here could START playback when nothing was playing, so do nothing.
+            return false;
         }
 
         foreach (var session in sessions)
