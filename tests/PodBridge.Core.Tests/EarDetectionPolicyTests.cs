@@ -20,7 +20,7 @@ public sealed class EarDetectionPolicyTests
         var p = new EarDetectionPolicy();
         var r = p.Update(0, T0);
         Assert.Equal(EarAction.None, r.Action);
-        Assert.True(r.StableChanged);
+        Assert.False(r.StableChanged);   // a starting point, not a change
         Assert.Equal(0, r.StableCount);
     }
 

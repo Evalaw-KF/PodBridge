@@ -276,5 +276,6 @@ public sealed class OutputSwitchPolicyTests
         Assert.False(OutputSwitchPolicy.ShouldKeepAlive(true, Ctx(Speakers)));
         Assert.False(OutputSwitchPolicy.ShouldKeepAlive(true, Ctx(null)));
         Assert.False(OutputSwitchPolicy.ShouldKeepAlive(true, Ctx(Pods, EndpointState.Unplugged)));
+        Assert.False(OutputSwitchPolicy.ShouldKeepAlive(true, Ctx(PodsCall)));   // call profile is left alone
     }
 }
