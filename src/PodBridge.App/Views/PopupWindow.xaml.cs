@@ -76,7 +76,8 @@ public sealed partial class PopupWindow : Window
 
         if (!_visible)
         {
-            NativeMethods.ShowWindow(_hwnd, NativeMethods.SW_SHOWNOACTIVATE);
+            // Show without activating, so the pop-up never takes focus from what the user is doing.
+            AppWindow.Show(activateWindow: false);
             _visible = true;
         }
         NativeMethods.SetWindowPos(_hwnd, NativeMethods.HWND_TOPMOST, 0, 0, 0, 0,

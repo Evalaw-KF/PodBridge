@@ -36,9 +36,9 @@ internal sealed class BleScanner : IDisposable
                     ScanningMode = BluetoothLEScanningMode.Passive,
                 };
 
-                // Only Apple's manufacturer data (company ID 0x004C); empty data section matches everything from Apple.
-                watcher.AdvertisementFilter.Advertisement.ManufacturerData.Add(
-                    new BluetoothLEManufacturerData { CompanyId = ProximityPairingParser.AppleCompanyId });
+                // No OS-level advertisement filter on purpose: a manufacturer-data filter entry with an
+                // unset Data buffer is not documented to mean "any data", and a wrong filter would
+                // silently hide every advert. Apple's data is picked out in OnReceived instead.
 
                 watcher.Received += OnReceived;
                 watcher.Stopped += OnStopped;

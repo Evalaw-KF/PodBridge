@@ -15,6 +15,11 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+
+        // PodBridge lives in the tray: hiding or closing windows must never end the process.
+        // Only "Exit" in the tray menu (Application.Exit) shuts it down.
+        DispatcherShutdownMode = DispatcherShutdownMode.OnExplicitShutdown;
+
         UnhandledException += (_, e) =>
         {
             // Never crash silently: write a small local log and keep running.
