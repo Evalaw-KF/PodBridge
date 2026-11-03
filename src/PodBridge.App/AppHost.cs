@@ -92,7 +92,14 @@ internal sealed class AppHost
 
         _mainWindow = new MainWindow();
         _popupWindow = new PopupWindow();
-        _outputPopup = new OutputPopupWindow();
+        try
+        {
+            _outputPopup = new OutputPopupWindow();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Output pop-up is unavailable", ex); // the rest of the app works without it
+        }
         ApplyTheme();
         StartupRegistration.Apply(Settings.StartWithWindows);
 
@@ -110,7 +117,7 @@ internal sealed class AppHost
         _tray.HotkeyPressed += _hotkeys.HandleHotkeyMessage;
         _hotkeys.Apply(Settings);
 
-        StartAudio();
+        Guard("Audio start-up", StartAudio);
 
         _scanner.AdvertReceived += (advert, rssi) =>
             _dispatcher.TryEnqueue(() => OnAdvert(advert, rssi));
@@ -126,13 +133,13 @@ internal sealed class AppHost
         _refreshTimer.Tick += (_, _) =>
         {
             RefreshTray();
-            RefreshAudioState();
+            Guard("Audio refresh", RefreshAudioState);
             StateChanged?.Invoke();
         };
         _refreshTimer.Start();
 
         _earTimer.Interval = TimeSpan.FromMilliseconds(500);
-        _earTimer.Tick += (_, _) => HandleEar(_ear.Tick(DateTimeOffset.UtcNow));
+        _earTimer.Tick += (_, _) => Guard("Ear timer", () => HandleEar(_ear.Tick(DateTimeOffset.UtcNow)));
         _earTimer.Start();
 
         if (!background)
@@ -208,7 +215,7 @@ internal sealed class AppHost
         ApplyTheme();
         ApplyPolicySettings();
         _hotkeys?.Apply(Settings);
-        RefreshAudioState();
+        Guard("Audio refresh", RefreshAudioState);
         SettingsChanged?.Invoke();
     }
 
@@ -227,13 +234,16 @@ internal sealed class AppHost
 
     private void StartAudio()
     {
-        _audio.DefaultRenderChanged += _ => _dispatcher.TryEnqueue(OnDefaultOutputChanged);
-        _audio.EndpointsChanged += () => _dispatcher.TryEnqueue(ScheduleEndpointsRefresh);
-        _audio.StartListening();
+        // Windows calls these on its own (MTA) threads. Only hop to the UI thread here: no MMDevice call may be made
+        // inside the callback itself, and exceptions in dispatcher callbacks must never reach WinUI.
+        _audio.DefaultRenderChanged += _ => _dispatcher.TryEnqueue(() => Guard("Default output change", OnDefaultOutputChanged));
+        _audio.EndpointsChanged += () => _dispatcher.TryEnqueue(() => Guard("Endpoint change", ScheduleEndpointsRefresh));
 
         _endpointsTimer.IsRepeating = false;
         _endpointsTimer.Interval = TimeSpan.FromMilliseconds(400);
-        _endpointsTimer.Tick += (_, _) => OnEndpointsChanged();
+        _endpointsTimer.Tick += (_, _) => Guard("Endpoint refresh", OnEndpointsChanged);
+
+        _audio.StartListening();
 
         var ctx = BuildContext();
         _lastDefaultId = ctx.DefaultId;
@@ -486,6 +496,19 @@ internal sealed class AppHost
         if (notify)
         {
             _notifications.Show("PodBridge", message);
+        }
+    }
+
+    /// <summary>Runs a UI-thread handler; logs instead of letting an exception escape into WinUI.</summary>
+    private static void Guard(string what, Action action)
+    {
+        try
+        {
+            action();
+        }
+        catch (Exception ex)
+        {
+            Log.Error($"{what} failed", ex);
         }
     }
 
