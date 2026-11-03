@@ -137,9 +137,12 @@ public sealed class DeviceTracker
             LastSeen = now,
         };
 
-        bool wasOpen = previousFresh && previous!.LidOpen;
+        bool wasOpen = previousFresh && previous!.LidOpen && !(previous.LeftInEar && previous.RightInEar);
         bool lidJustOpened = false;
-        if (snapshot.LidOpen && !wasOpen && now - _lastLidEvent >= _options.LidEventCooldown)
+        // With both buds in ears they are not in the case, so the lid bit says nothing useful
+        // and must not trigger the "case opened" pop-up.
+        bool bothInEar = snapshot.LeftInEar && snapshot.RightInEar;
+        if (snapshot.LidOpen && !wasOpen && !bothInEar && now - _lastLidEvent >= _options.LidEventCooldown)
         {
             lidJustOpened = true;
             _lastLidEvent = now;

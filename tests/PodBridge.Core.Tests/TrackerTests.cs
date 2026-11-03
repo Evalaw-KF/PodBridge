@@ -136,6 +136,17 @@ public class TrackerTests
     }
 
     [Fact]
+    public void Lid_bit_is_ignored_while_both_buds_are_in_ears()
+    {
+        var tracker = new DeviceTracker();
+        var inEars = Make(lidOpen: true) with { LeftInEar = true, RightInEar = true };
+        Assert.False(tracker.Update(inEars, -60, T0).LidJustOpened);
+
+        var oneInEar = Make(lidOpen: true) with { LeftInEar = true };
+        Assert.True(tracker.Update(oneInEar, -60, T0.AddSeconds(1)).LidJustOpened);
+    }
+
+    [Fact]
     public void Lid_flicker_is_rate_limited()
     {
         var tracker = new DeviceTracker(new TrackerOptions { LidEventCooldown = TimeSpan.FromSeconds(10) });
