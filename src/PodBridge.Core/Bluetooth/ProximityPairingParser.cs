@@ -11,10 +11,11 @@ namespace PodBridge.Core.Bluetooth;
 ///  [2] prefix          0x01 = paired, 0x00 = not paired
 ///  [3] model high byte \  big-endian model ID, e.g. 0x0E20
 ///  [4] model low byte  /
-///  [5] status          high nibble bit 0x20 set = not flipped; low nibble = in-ear bits
+///  [5] status          bit 0x20 set = left bud is the broadcaster (not flipped);
+///                      bit 0x02 = broadcasting bud in ear, bit 0x08 = other bud in ear
 ///  [6] pod batteries   two nibbles, 0..10 = 0..100 %, 0xF = unknown
 ///  [7] charge + case   high nibble = charging bits, low nibble = case battery
-///  [8] lid             bit 0x08 clear = lid open
+///  [8] lid             bit 0x08 clear = lid open; low 3 bits are an open/close counter
 ///  [9] colour
 /// </code>
 /// Layout comes from public community reverse-engineering notes; see the README for caveats.
@@ -29,8 +30,10 @@ public static class ProximityPairingParser
 
     // Status byte [5]
     private const byte NotFlippedBit = 0x20;
-    private const byte InEarSecondaryBit = 0x02;  // see Parse(): swapped when flipped
-    private const byte InEarPrimaryBit = 0x08;
+    // In-ear bits are relative to the broadcasting bud, not to left/right.
+    // Not flipped (left broadcasts): 0x02 = left, 0x08 = right. Flipped: the other way round.
+    private const byte InEarBroadcasterBit = 0x02;
+    private const byte InEarOtherBit = 0x08;
 
     // Charge nibble (high nibble of byte [7])
     private const int ChargeLowBit = 0x1;
@@ -96,8 +99,10 @@ public static class ProximityPairingParser
         bool rightCharging = flipped ? lowCharging : highCharging;
 
         int inEar = status & 0x0F;
-        bool leftInEar = (inEar & (flipped ? InEarSecondaryBit : InEarPrimaryBit)) != 0;
-        bool rightInEar = (inEar & (flipped ? InEarPrimaryBit : InEarSecondaryBit)) != 0;
+        // A bud that is charging is sitting in the case, whatever the in-ear bit says
+        // (the bit has been seen set for buds in the case).
+        bool leftInEar = !leftCharging && (inEar & (flipped ? InEarOtherBit : InEarBroadcasterBit)) != 0;
+        bool rightInEar = !rightCharging && (inEar & (flipped ? InEarBroadcasterBit : InEarOtherBit)) != 0;
 
         advert = new ProximityAdvert
         {

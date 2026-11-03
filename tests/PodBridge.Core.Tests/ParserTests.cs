@@ -98,8 +98,8 @@ public class ParserTests
 
     [Theory]
     [InlineData(0x00, false, false)]
-    [InlineData(0x08, true, false)]
-    [InlineData(0x02, false, true)]
+    [InlineData(0x02, true, false)]
+    [InlineData(0x08, false, true)]
     [InlineData(0x0A, true, true)]
     public void In_ear_bits_not_flipped(int bits, bool left, bool right)
     {
@@ -109,13 +109,61 @@ public class ParserTests
     }
 
     [Theory]
-    [InlineData(0x08, false, true)]
-    [InlineData(0x02, true, false)]
+    [InlineData(0x02, false, true)]
+    [InlineData(0x08, true, false)]
+    [InlineData(0x0A, true, true)]
     public void In_ear_bits_swap_when_flipped(int bits, bool left, bool right)
     {
         var advert = Parse(Build(statusHigh: Flipped, inEarBits: (byte)bits));
         Assert.Equal(left, advert.LeftInEar);
         Assert.Equal(right, advert.RightInEar);
+    }
+
+    [Fact]
+    public void Left_bud_in_ear_with_right_bud_charging_in_case()
+    {
+        // Real-world shape: left broadcasting (not flipped), left in ear (0x02), right charging (bit 0x2).
+        var advert = Parse(Build(inEarBits: 0x02, chargeNibble: 0x2));
+        Assert.True(advert.LeftInEar);
+        Assert.False(advert.RightInEar);
+        Assert.False(advert.LeftCharging);
+        Assert.True(advert.RightCharging);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_charging_bud_is_never_reported_in_ear(bool flipped)
+    {
+        // Both in-ear bits set, both buds charging: they are in the case.
+        var advert = Parse(Build(statusHigh: flipped ? Flipped : NotFlipped, inEarBits: 0x0A, chargeNibble: 0x3));
+        Assert.False(advert.LeftInEar);
+        Assert.False(advert.RightInEar);
+    }
+
+    [Fact]
+    public void Decodes_a_full_27_byte_payload_byte_for_byte()
+    {
+        // 07 19 01 | 14 20 | 2B | 89 | 3A | 01 ... (company ID already stripped)
+        // status 0x2B: 0x20 set (left broadcasts), 0x02 left in ear, 0x08 right in ear.
+        // pods 0x89: low nibble 9 = left 90 %, high nibble 8 = right 80 %.
+        // 0x3A: charge nibble 3 = both buds charging bits, case 10 = 100 %.
+        // lid 0x01: closed bit clear -> open, counter 1.
+        var data = new byte[27];
+        new byte[] { 0x07, 0x19, 0x01, 0x14, 0x20, 0x2B, 0x89, 0x3A, 0x01, 0x00, 0x00 }.CopyTo(data, 0);
+        var advert = Parse(data);
+
+        Assert.Equal(AppleDeviceModel.AirPodsPro2Lightning, advert.Model);
+        Assert.False(advert.Flipped);
+        Assert.Equal(90, advert.LeftBattery);
+        Assert.Equal(80, advert.RightBattery);
+        Assert.Equal(100, advert.CaseBattery);
+        Assert.True(advert.LeftCharging);
+        Assert.True(advert.RightCharging);
+        Assert.False(advert.CaseCharging);
+        Assert.False(advert.LeftInEar);   // charging wins over the in-ear bit
+        Assert.False(advert.RightInEar);
+        Assert.True(advert.LidOpen);
     }
 
     [Fact]
@@ -141,6 +189,7 @@ public class ParserTests
     [InlineData(0x0E20, AppleDeviceModel.AirPodsPro)]
     [InlineData(0x1420, AppleDeviceModel.AirPodsPro2Lightning)]
     [InlineData(0x2420, AppleDeviceModel.AirPodsPro2UsbC)]
+    [InlineData(0x2720, AppleDeviceModel.AirPodsPro3)]
     [InlineData(0x0A20, AppleDeviceModel.AirPodsMax)]
     [InlineData(0x1F20, AppleDeviceModel.AirPodsMaxUsbC)]
     [InlineData(0x0B20, AppleDeviceModel.PowerbeatsPro)]

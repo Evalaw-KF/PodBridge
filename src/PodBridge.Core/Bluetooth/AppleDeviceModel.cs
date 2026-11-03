@@ -13,6 +13,7 @@ public enum AppleDeviceModel
     AirPodsPro,
     AirPodsPro2Lightning,
     AirPodsPro2UsbC,
+    AirPodsPro3,
     AirPodsMax,
     AirPodsMaxUsbC,
 
@@ -52,6 +53,7 @@ public static class AppleDeviceCatalog
         [0x0E20] = AppleDeviceModel.AirPodsPro,
         [0x1420] = AppleDeviceModel.AirPodsPro2Lightning,
         [0x2420] = AppleDeviceModel.AirPodsPro2UsbC,
+        [0x2720] = AppleDeviceModel.AirPodsPro3,
         [0x0A20] = AppleDeviceModel.AirPodsMax,
         [0x1F20] = AppleDeviceModel.AirPodsMaxUsbC,
 
@@ -90,6 +92,7 @@ public static class AppleDeviceCatalog
         AppleDeviceModel.AirPodsPro => "AirPods Pro",
         AppleDeviceModel.AirPodsPro2Lightning => "AirPods Pro (2nd generation)",
         AppleDeviceModel.AirPodsPro2UsbC => "AirPods Pro (2nd generation, USB-C)",
+        AppleDeviceModel.AirPodsPro3 => "AirPods Pro 3",
         AppleDeviceModel.AirPodsMax => "AirPods Max",
         AppleDeviceModel.AirPodsMaxUsbC => "AirPods Max (USB-C)",
         AppleDeviceModel.PowerbeatsPro => "Powerbeats Pro",
