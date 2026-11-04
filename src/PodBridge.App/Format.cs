@@ -28,6 +28,24 @@ internal static class Format
     public static bool TrayCharging(DeviceSnapshot? s) =>
         s is not null && (s.LeftCharging || s.RightCharging || s.CaseCharging);
 
+    /// <summary>One line of known battery levels for the connection banner, or null if none is known.</summary>
+    public static string? BannerDetail(DeviceSnapshot? s)
+    {
+        if (s is null)
+        {
+            return null;
+        }
+        if (s.Kind == DeviceKind.Headphones)
+        {
+            return s.LeftBattery is int b ? $"Battery {b}%" : null;
+        }
+        var parts = new List<string>();
+        if (s.LeftBattery is int l) { parts.Add($"L {l}%"); }
+        if (s.RightBattery is int r) { parts.Add($"R {r}%"); }
+        if (s.CaseBattery is int c) { parts.Add($"Case {c}%"); }
+        return parts.Count == 0 ? null : string.Join(" · ", parts);
+    }
+
     public static string ComponentName(DeviceSnapshot s, BatteryComponent c) => c switch
     {
         BatteryComponent.Left when s.Kind == DeviceKind.Headphones => "Headphones",

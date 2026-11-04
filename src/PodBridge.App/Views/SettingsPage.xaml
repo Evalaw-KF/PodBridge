@@ -134,6 +134,8 @@
                               SelectionChanged="FallbackCombo_SelectionChanged" />
                     <ToggleSwitch x:Name="OutputPopupToggle" Header="Show a volume pop-up when the output changes"
                                   OnContent="On" OffContent="Off" Toggled="Setting_Changed" />
+                    <ToggleSwitch x:Name="BannerToggle" Header="Show connect/disconnect banner"
+                                  OnContent="On" OffContent="Off" Toggled="Setting_Changed" />
                     <ToggleSwitch x:Name="KeepAliveToggle" Header="Keep the AirPods awake with inaudible silence"
                                   OnContent="On" OffContent="Off" Toggled="Setting_Changed" />
                     <TextBlock TextWrapping="Wrap" Opacity="0.6" Style="{StaticResource CaptionTextBlockStyle}"

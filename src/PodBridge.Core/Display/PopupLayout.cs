@@ -36,6 +36,13 @@ public static class PopupLayout
         _ => PopupPosition.BottomCentre,
     };
 
+    /// <summary>The middle of the opposite screen edge (used by the connection banner so it never covers the other pop-ups).</summary>
+    public static PopupPosition OppositeEdgeCentre(PopupPosition position) => position switch
+    {
+        PopupPosition.TopRight or PopupPosition.TopCentre => PopupPosition.BottomCentre,
+        _ => PopupPosition.TopCentre,
+    };
+
     /// <param name="logicalWidth">Normal-size width in device-independent pixels.</param>
     /// <param name="scale">Display scale (1.0 = 100%).</param>
     public static PixelRect Compute(

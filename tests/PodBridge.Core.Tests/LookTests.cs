@@ -220,3 +220,17 @@ public sealed class BannerSettingTests
         Assert.True(new AppSettings().Normalized().ShowConnectionBanner);
     }
 }
+
+public sealed class BannerPlacementTests
+{
+    [Theory]
+    [InlineData(PopupPosition.BottomRight, PopupPosition.TopCentre)]
+    [InlineData(PopupPosition.BottomCentre, PopupPosition.TopCentre)]
+    [InlineData(PopupPosition.TopRight, PopupPosition.BottomCentre)]
+    [InlineData(PopupPosition.TopCentre, PopupPosition.BottomCentre)]
+    public void Banner_goes_to_the_other_edge_than_the_volume_pop_up(PopupPosition configured, PopupPosition banner)
+    {
+        Assert.Equal(banner, PopupLayout.OppositeEdgeCentre(configured));
+        Assert.NotEqual(PopupLayout.CentreHorizontally(configured), PopupLayout.OppositeEdgeCentre(configured));
+    }
+}

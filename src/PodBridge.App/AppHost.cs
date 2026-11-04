@@ -35,6 +35,7 @@ internal sealed class AppHost
     private readonly MediaControlService _media = new();
     private readonly EarDetectionPolicy _ear = new();
     private readonly OutputSwitchPolicy _switch = new();
+    private readonly ConnectionWatcher _connection = new();
     private readonly SemaphoreSlim _earActions = new(1, 1);
     private readonly DispatcherQueueTimer _earTimer;
     private readonly DispatcherQueueTimer _endpointsTimer;
@@ -49,6 +50,7 @@ internal sealed class AppHost
     private MainWindow? _mainWindow;
     private PopupWindow? _popupWindow;
     private OutputPopupWindow? _outputPopup;
+    private BannerWindow? _banner;
     private HotkeyService? _hotkeys;
 
     public AppHost(DispatcherQueue dispatcher)
@@ -87,6 +89,9 @@ internal sealed class AppHost
     public HotkeyService? Hotkeys => _hotkeys;
 
     /// <summary>One-line description of the AirPods audio link and the current output, for the main page.</summary>
+    /// <summary>True while an AirPods audio endpoint is active (connected to Windows).</summary>
+    public bool PodsConnected { get; private set; }
+
     public string AudioStatus { get; private set; } = string.Empty;
 
     /// <summary>Result of the last connect / disconnect / switch request.</summary>
@@ -117,6 +122,14 @@ internal sealed class AppHost
         catch (Exception ex)
         {
             Log.Error("Output pop-up is unavailable", ex); // the rest of the app works without it
+        }
+        try
+        {
+            _banner = new BannerWindow();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Connection banner is unavailable", ex);
         }
         ApplyTheme();
         StartupRegistration.Apply(Settings.StartWithWindows);
@@ -159,7 +172,11 @@ internal sealed class AppHost
         _refreshTimer.Start();
 
         _earTimer.Interval = TimeSpan.FromMilliseconds(500);
-        _earTimer.Tick += (_, _) => Guard("Ear timer", () => HandleEar(_ear.Tick(DateTimeOffset.UtcNow)));
+        _earTimer.Tick += (_, _) =>
+        {
+            Guard("Ear timer", () => HandleEar(_ear.Tick(DateTimeOffset.UtcNow)));
+            Guard("Connection watch", PollConnection);
+        };
         _earTimer.Start();
 
         if (!background)
@@ -381,6 +398,8 @@ internal sealed class AppHost
         }
 
         var pods = ctx.AirPods;
+        PodsConnected = pods is { IsActive: true };
+        _connection.Observe(PodsConnected, DateTimeOffset.UtcNow);
         var current = ctx.Find(ctx.DefaultId)?.Name;
         if (pods is null)
         {
@@ -395,6 +414,30 @@ internal sealed class AppHost
             AudioStatus = $"Audio not connected: {pods.Name}. Current output: {current ?? "none"}.";
         }
         CanChangeConnection = pods is not null && !_connectionBusy;
+    }
+
+    /// <summary>Announces a debounced connect / disconnect (the first observation at start-up is never announced).</summary>
+    private void PollConnection()
+    {
+        if (IsExiting)
+        {
+            return;
+        }
+        var change = _connection.Poll(DateTimeOffset.UtcNow);
+        if (change == ConnectionChange.None)
+        {
+            return;
+        }
+
+        bool connected = change == ConnectionChange.Connected;
+        StateChanged?.Invoke();
+        if (!Settings.ShowConnectionBanner)
+        {
+            return;
+        }
+        var snapshot = Latest;
+        string name = snapshot?.DisplayName ?? "AirPods";
+        _banner?.ShowFor($"{name} {(connected ? "connected" : "disconnected")}", Format.BannerDetail(snapshot), connected);
     }
 
     private void ScheduleEndpointsRefresh()
@@ -635,6 +678,7 @@ internal sealed class AppHost
         _mainWindow?.ApplyTheme(Settings.Theme);
         _popupWindow?.ApplyTheme(Settings.Theme);
         _outputPopup?.ApplyTheme(Settings.Theme);
+        _banner?.ApplyTheme(Settings.Theme);
     }
 
     public void ShowMainWindow() => _mainWindow?.Present(showSettings: false);
@@ -684,6 +728,7 @@ internal sealed class AppHost
         _notifications.Dispose();
         _popupWindow?.Close();
         _outputPopup?.Close();
+        _banner?.Close();
         _mainWindow?.Close();
         Microsoft.UI.Xaml.Application.Current.Exit();
     }

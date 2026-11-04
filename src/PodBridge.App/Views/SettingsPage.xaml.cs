@@ -37,6 +37,7 @@ public sealed partial class SettingsPage : Page
         NameMatchBox.Text = s.HeadphoneNameMatch;
         AutoSwitchToggle.IsOn = s.AutoSwitchOutput;
         OutputPopupToggle.IsOn = s.OutputPopupEnabled;
+        BannerToggle.IsOn = s.ShowConnectionBanner;
         KeepAliveToggle.IsOn = s.KeepAliveEnabled;
         PopulateFallbackChoices(s);
         HotkeysToggle.IsOn = s.HotkeysEnabled;
@@ -203,6 +204,7 @@ public sealed partial class SettingsPage : Page
         s.AutoSwitchOutput = AutoSwitchToggle.IsOn;
         s.FallbackEndpointId = (FallbackCombo.SelectedItem as ComboBoxItem)?.Tag as string ?? string.Empty;
         s.OutputPopupEnabled = OutputPopupToggle.IsOn;
+        s.ShowConnectionBanner = BannerToggle.IsOn;
         s.KeepAliveEnabled = KeepAliveToggle.IsOn;
         s.HotkeysEnabled = HotkeysToggle.IsOn;
         s.ConnectHotkey = ConnectHotkeyBox.Text;
