@@ -88,10 +88,10 @@ internal sealed class AppHost
     public event Action? SeenAppsChanged;
     public HotkeyService? Hotkeys => _hotkeys;
 
-    /// <summary>One-line description of the AirPods audio link and the current output, for the main page.</summary>
     /// <summary>True while an AirPods audio endpoint is active (connected to Windows).</summary>
     public bool PodsConnected { get; private set; }
 
+    /// <summary>One-line description of the AirPods audio link and the current output, for the main page.</summary>
     public string AudioStatus { get; private set; } = string.Empty;
 
     /// <summary>Result of the last connect / disconnect / switch request.</summary>

@@ -88,15 +88,16 @@ public sealed partial class BatteryRing : UserControl
             }
             else
             {
-                var segment = new ArcSegment
-                {
-                    Point = new Point(arc.End.X, arc.End.Y),
-                    Size = new Size(radius, radius),
-                    SweepDirection = SweepDirection.Clockwise,
-                    IsLargeArc = arc.IsLargeArc,
-                };
                 var figure = new PathFigure { StartPoint = new Point(arc.Start.X, arc.Start.Y), IsClosed = false };
-                figure.Segments.Add(segment);
+                if (arc.IsLargeArc)
+                {
+                    // Over half a circle: draw it as two small arcs through the middle of the sweep. This never asks
+                    // the renderer to solve a near-full arc whose start and end almost coincide (as at 100%), which
+                    // can collapse to nothing or flip direction because of rounding.
+                    var mid = RingGeometry.PointAt(centre, centre, radius, arc.SweepDegrees / 2);
+                    figure.Segments.Add(Arc(mid, radius));
+                }
+                figure.Segments.Add(Arc(arc.End, radius));
                 var geometry = new PathGeometry();
                 geometry.Figures.Add(figure);
                 ArcPath.Data = geometry;
@@ -112,4 +113,12 @@ public sealed partial class BatteryRing : UserControl
             Log.Error("Could not draw a battery ring", ex);
         }
     }
+
+    private static ArcSegment Arc(RingPoint to, double radius) => new()
+    {
+        Point = new Point(to.X, to.Y),
+        Size = new Size(radius, radius),
+        SweepDirection = SweepDirection.Clockwise,
+        IsLargeArc = false,
+    };
 }

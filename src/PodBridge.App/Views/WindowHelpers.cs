@@ -107,12 +107,27 @@ internal static class WindowHelpers
         window.AppWindow.SetPresenter(presenter);
         window.AppWindow.IsShownInSwitchers = false;
 
-        long style = NativeMethods.GetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE).ToInt64();
-        style |= NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_NOACTIVATE;
-        NativeMethods.SetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE, new IntPtr(style));
+        try
+        {
+            long style = NativeMethods.GetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE).ToInt64();
+            style |= NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_NOACTIVATE;
+            NativeMethods.SetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE, new IntPtr(style));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not set the pop-up window style", ex);
+        }
 
-        int noRound = NativeMethods.DWMWCP_DONOTROUND;
-        NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref noRound, sizeof(int));
+        try
+        {
+            // Fails harmlessly (non-zero HRESULT) before Windows 11; the window region below still rounds the card.
+            int noRound = NativeMethods.DWMWCP_DONOTROUND;
+            NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref noRound, sizeof(int));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not turn off the system corner rounding", ex);
+        }
         return hwnd;
     }
 
@@ -151,20 +166,36 @@ internal static class WindowHelpers
         // the second pass puts the size back.
         PixelRect rect = default;
         double scale = 1.0;
-        for (int pass = 0; pass < 2; pass++)
+        try
         {
-            var work = DisplayArea.Primary.WorkArea;
-            scale = GetPrimaryScale(window);
-            rect = PopupLayout.Compute(size, position, logicalWidth, logicalHeight,
-                new PixelRect(work.X, work.Y, work.Width, work.Height), scale);
-            window.AppWindow.MoveAndResize(new RectInt32(rect.X, rect.Y, rect.Width, rect.Height));
+            for (int pass = 0; pass < 2; pass++)
+            {
+                var work = DisplayArea.Primary.WorkArea;
+                scale = GetPrimaryScale(window);
+                rect = PopupLayout.Compute(size, position, logicalWidth, logicalHeight,
+                    new PixelRect(work.X, work.Y, work.Width, work.Height), scale);
+                window.AppWindow.MoveAndResize(new RectInt32(rect.X, rect.Y, rect.Width, rect.Height));
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not place the pop-up", ex);
         }
 
         try
         {
+            // The region is in physical pixels, relative to the window's top-left corner. Use the size Windows really
+            // gave the window (it can differ from the one asked for, e.g. a minimum size), so the cut matches the card.
+            var actual = window.AppWindow.Size;
+            int width = actual.Width > 0 ? actual.Width : rect.Width;
+            int height = actual.Height > 0 ? actual.Height : rect.Height;
+            if (width <= 0 || height <= 0)
+            {
+                return;
+            }
             // One logical pixel more than the card's radius, so the cut sits just inside the card's own curve.
             int diameter = (int)Math.Round((cornerRadius + 1) * 2 * PopupLayout.SizeFactor(size) * scale);
-            IntPtr region = NativeMethods.CreateRoundRectRgn(0, 0, rect.Width + 1, rect.Height + 1, diameter, diameter);
+            IntPtr region = NativeMethods.CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
             if (region != IntPtr.Zero && NativeMethods.SetWindowRgn(GetHandle(window), region, true) == 0)
             {
                 NativeMethods.DeleteObject(region); // the system only takes ownership when the call succeeds
