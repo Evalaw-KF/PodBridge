@@ -4,7 +4,7 @@
 
 PodBridge is a small, free, open-source app that sits in your system tray and shows the battery level of your AirPods or Beats: left earbud, right earbud and charging case. When you open the case lid near your PC, a small pop-up appears in the bottom-right corner, just like on an iPhone.
 
-> Status: **early version (Phase 2)**. It is built to work with AirPods Pro (2nd generation) and other recent AirPods and Beats, but it is new, so please tell us what works and what does not (see "Something is wrong?" below).
+> Status: **early version (Phase 4)**. It is built to work with AirPods Pro (2nd generation) and other recent AirPods and Beats, but it is new, so please tell us what works and what does not (see "Something is wrong?" below).
 
 ## What it does
 
@@ -12,7 +12,7 @@ PodBridge is a small, free, open-source app that sits in your system tray and sh
 - Tray icon whose number and colour show the lowest earbud battery. Hover for details.
 - Pop-up in the corner of the screen when you open the case lid (it hides itself after about 6 seconds).
 - Windows notification when a battery gets low (you choose the percentage).
-- Optional: start with Windows, light / dark / system theme.
+- Optional: start with Windows, light / dark / system theme (the pop-ups follow it too).
 
 New in Phase 2 (these need your AirPods to be **paired and connected to Windows** as audio, which is normal Bluetooth pairing in Windows Settings):
 
@@ -22,6 +22,14 @@ New in Phase 2 (these need your AirPods to be **paired and connected to Windows*
 - **Connect / Disconnect** buttons on the main page and in the tray menu.
 - **Global shortcuts.** `Ctrl+Alt+A` connects or disconnects the AirPods, `Ctrl+Alt+S` switches the output between the AirPods and your speakers. Both can be changed in Settings (click the box and press the new shortcut; Backspace clears it). If another program already uses a shortcut, Settings tells you.
 - **Keep-awake.** Plays completely silent audio to the AirPods while they are your output, so the first moment of the next sound is not cut off. On by default; turn it off in Settings if you prefer.
+
+New in Phase 4:
+
+- **Read notifications aloud** (see the important note below). PodBridge can speak Windows notifications through your AirPods using the voices installed on your PC (offline, nothing is sent anywhere). In Settings you choose: on/off, "only while my AirPods are in my ear" (on by default), the voice, speed and volume, which apps are read (ticked from the apps that have shown a notification so far; none are read until you tick them), and whether to read the whole message or only the app name and title. Repeated notifications are read once, and a notification that was already on screen when you switched it on is never read.
+- **Speaker mode** (the *Speaker mode* button on the main page). Use the PC as a Bluetooth speaker for your phone: pair the phone with the PC in Windows Bluetooth settings, press **Enable** next to it, then choose the PC as the Bluetooth speaker on the phone, or press **Open** here. Tick *Enable automatically* to have PodBridge enable that device whenever it starts.
+- **Look and feel.** Theme (system / light / dark), pop-up size (small / normal / large), pop-up position (bottom right, bottom centre, top right, top centre; the volume pop-up uses the same edge but stays centred), and an optional **headphone picture** of your own (PNG, JPG, BMP or GIF up to 10 MB). The picture is copied into `%LOCALAPPDATA%\PodBridge` and shown in the main window and the pop-up. **Reset** goes back to the default.
+
+> **Read-aloud needs a "packaged" app on most PCs.** Windows only lets an app read other apps' notifications if it is installed as a packaged (MSIX) app, and PodBridge is a plain unzip-and-run app on purpose (a packaged app needs a certificate to be trusted first). PodBridge checks what Windows allows. If Windows refuses, Settings says so in plain words and the read-aloud controls are switched off; everything else keeps working. If Windows does allow it, Settings shows an **Allow access** button that opens Windows' own permission prompt.
 
 ## Download and run (no installing, no coding)
 
@@ -73,6 +81,9 @@ To remove PodBridge: choose **Exit** from the tray menu, delete the folder you e
 | "No audio device ... was found" | Pair the AirPods in Windows Settings > Bluetooth first. Then check *Headphone name match* in Settings matches how Windows names them (see Settings > System > Sound). |
 | Music does not pause when I take a bud out | The player must support Windows media controls (the media card in the volume flyout shows it). Also check *Pause media* is on in Settings. |
 | Connect / Disconnect does nothing | This uses an undocumented Windows feature that some Bluetooth drivers do not offer. Use Windows' Bluetooth settings instead, and please open an issue with your PC's Bluetooth chip. |
+| AirPods won't connect / no sound | Turn off Bluetooth on your iPhone, remove and re-pair the AirPods in Windows, and check the Wi-Fi/Bluetooth antenna is attached to the back of the PC (many desktop motherboards ship it separately). |
+| Settings says reading notifications is "not available" | Windows only allows this for packaged apps (see the note above). Nothing is wrong with your PC; the rest of PodBridge is unaffected. |
+| Speaker mode shows no devices | Pair the phone with the PC in Windows Settings > Bluetooth & devices first. Needs Windows 10 version 2004 or newer. |
 | A shortcut is marked red in Settings | Another program or Windows already uses it. Pick a different combination. |
 
 When reporting an issue, say which Windows version and which AirPods or Beats model you have.
@@ -82,6 +93,8 @@ When reporting an issue, say which Windows version and which AirPods or Beats mo
 - **Connect / Disconnect and switching the default output rely on undocumented Windows interfaces.** Windows has no public API for either. PodBridge uses the same hidden interfaces many sound-switching tools use (`IPolicyConfig` for the default device, and the Bluetooth audio driver's kernel-streaming "one-shot" properties for connect/disconnect). They work on current Windows 10 and 11, but a Windows update or a particular Bluetooth driver can break them. If they stop working, the rest of PodBridge keeps working.
 - **Auto-pause needs a media app that supports Windows media controls** (Spotify, Chrome, Edge, Firefox, Windows Media Player, VLC with its media-key option, and so on). If Windows knows of no media session at all, PodBridge does nothing rather than risk starting playback.
 - The *Keep-awake* silent stream shows up as "PodBridge" in the Windows volume mixer, and keeps the AirPods' audio link in use, which can cost a little battery.
+- **Speaker mode** uses Windows' own Bluetooth audio-sink feature (`AudioPlaybackConnection`). It depends on your Bluetooth adapter and driver, and the phone has to support sending audio to another device (most do).
+- Reading notifications aloud only sees notifications that Windows shows as toasts, and only while PodBridge runs.
 - Pausing, switching and the shortcuts need PodBridge to be running (it can start with Windows).
 
 - Apple does not publish this Bluetooth format. PodBridge's decoding is based on public community research and may not match every model or firmware version. Battery levels come in steps of 10%.
