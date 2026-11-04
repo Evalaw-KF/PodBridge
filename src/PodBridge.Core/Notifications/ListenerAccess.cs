@@ -32,6 +32,19 @@ public static class ListenerAccessText
         _ => "Checking…",
     };
 
+    /// <summary>
+    /// Maps Windows' UserNotificationListenerAccessStatus (0 Unspecified, 1 Allowed, 2 Denied). Without a package
+    /// identity Windows cannot show its permission prompt, so anything but "Allowed" means unavailable, not "denied".
+    /// </summary>
+    public static ListenerAccess FromStatus(int status, bool hasPackageIdentity) => status switch
+    {
+        1 => ListenerAccess.Allowed,
+        _ when !hasPackageIdentity => ListenerAccess.Unavailable,
+        2 => ListenerAccess.Denied,
+        0 => ListenerAccess.NeedsRequest,
+        _ => ListenerAccess.Unavailable,
+    };
+
     public static bool CanRequest(ListenerAccess access) => access is ListenerAccess.NeedsRequest;
 
     public static bool ShowOpenSettings(ListenerAccess access) => access is ListenerAccess.Denied;

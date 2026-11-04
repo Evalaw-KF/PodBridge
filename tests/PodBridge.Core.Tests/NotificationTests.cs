@@ -248,4 +248,15 @@ public sealed class NotificationTests
         Assert.False(ListenerAccessText.FeatureUsable(ListenerAccess.Unavailable));
         Assert.True(ListenerAccessText.FeatureUsable(ListenerAccess.Denied));
     }
+
+    [Theory]
+    [InlineData(1, false, ListenerAccess.Allowed)]
+    [InlineData(1, true, ListenerAccess.Allowed)]
+    [InlineData(0, false, ListenerAccess.Unavailable)]
+    [InlineData(2, false, ListenerAccess.Unavailable)]
+    [InlineData(0, true, ListenerAccess.NeedsRequest)]
+    [InlineData(2, true, ListenerAccess.Denied)]
+    [InlineData(7, true, ListenerAccess.Unavailable)]
+    public void Access_status_mapping(int status, bool identity, ListenerAccess expected)
+        => Assert.Equal(expected, ListenerAccessText.FromStatus(status, identity));
 }

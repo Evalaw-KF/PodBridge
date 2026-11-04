@@ -29,6 +29,13 @@ public static class PopupLayout
         _ => 1.0,
     };
 
+    /// <summary>Same screen edge, but in the middle (used by the volume pop-up so it never covers the battery pop-up).</summary>
+    public static PopupPosition CentreHorizontally(PopupPosition position) => position switch
+    {
+        PopupPosition.TopRight or PopupPosition.TopCentre => PopupPosition.TopCentre,
+        _ => PopupPosition.BottomCentre,
+    };
+
     /// <param name="logicalWidth">Normal-size width in device-independent pixels.</param>
     /// <param name="scale">Display scale (1.0 = 100%).</param>
     public static PixelRect Compute(

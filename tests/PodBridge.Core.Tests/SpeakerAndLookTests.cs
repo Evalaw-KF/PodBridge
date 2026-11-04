@@ -121,6 +121,14 @@ public sealed class SpeakerAndLookTests
         Assert.Equal(340, bad.Width);
     }
 
+    [Fact]
+    public void Volume_popup_keeps_the_edge_but_centres()
+    {
+        Assert.Equal(PopupPosition.TopCentre, PopupLayout.CentreHorizontally(PopupPosition.TopRight));
+        Assert.Equal(PopupPosition.BottomCentre, PopupLayout.CentreHorizontally(PopupPosition.BottomRight));
+        Assert.Equal(PopupPosition.TopCentre, PopupLayout.CentreHorizontally(PopupPosition.TopCentre));
+    }
+
     // ---- custom picture ----
 
     [Theory]
