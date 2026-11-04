@@ -1,13 +1,10 @@
 using Microsoft.UI.Dispatching;
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using PodBridge.App.Native;
 using PodBridge.Core.Display;
 using PodBridge.Core.Settings;
-using Windows.Graphics;
 
 namespace PodBridge.App.Views;
 
@@ -18,7 +15,7 @@ namespace PodBridge.App.Views;
 /// </summary>
 public sealed partial class OutputPopupWindow : Window
 {
-    private const int LogicalWidth = 340;
+    private const int LogicalWidth = 360;
     private const int LogicalHeight = 112;
     private static readonly TimeSpan IdleHideAfter = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan VolumePollEvery = TimeSpan.FromMilliseconds(300);
@@ -34,25 +31,9 @@ public sealed partial class OutputPopupWindow : Window
     {
         InitializeComponent();
 
-        _hwnd = WindowHelpers.GetHandle(this);
-        SystemBackdrop = new DesktopAcrylicBackdrop();
-
-        var presenter = OverlappedPresenter.Create();
-        presenter.IsAlwaysOnTop = true;
-        presenter.IsResizable = false;
-        presenter.IsMaximizable = false;
-        presenter.IsMinimizable = false;
-        presenter.SetBorderAndTitleBar(false, false);
-        AppWindow.SetPresenter(presenter);
-        AppWindow.IsShownInSwitchers = false;
-
-        // Tool window + no-activate: no taskbar button, never steals focus (mouse clicks on the slider still work).
-        long style = NativeMethods.GetWindowLongPtr(_hwnd, NativeMethods.GWL_EXSTYLE).ToInt64();
-        style |= NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_NOACTIVATE;
-        NativeMethods.SetWindowLongPtr(_hwnd, NativeMethods.GWL_EXSTYLE, new IntPtr(style));
-
-        int round = NativeMethods.DWMWCP_ROUND;
-        NativeMethods.DwmSetWindowAttribute(_hwnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
+        // No acrylic, never activated: the card paints its own solid, theme-aware background (see ApplyTheme).
+        _hwnd = WindowHelpers.ConfigurePopupWindow(this);
+        ApplyTheme(ThemePreference.System);
 
         _hideTimer = DispatcherQueue.CreateTimer();
         _hideTimer.IsRepeating = false;
@@ -65,18 +46,29 @@ public sealed partial class OutputPopupWindow : Window
         _pollTimer.Interval = VolumePollEvery;
         _pollTimer.Tick += (_, _) => { if (!_pointerInside) { ReadVolume(); } };
 
-        AppWindow.Closing += (sender, args) =>
-        {
-            if (!App.Host.IsExiting)
-            {
-                args.Cancel = true;
-                Hide();
-            }
-        };
+        WindowHelpers.HideInsteadOfClose(this, Hide);
     }
 
-    public void ApplyTheme(ThemePreference preference) =>
-        WindowHelpers.ApplyTheme(RootGrid, preference);
+    public void ApplyTheme(ThemePreference preference)
+    {
+        try
+        {
+            var p = WindowHelpers.ApplyPopupTheme(ThemeRoot, preference);
+            var background = Palette.Brush(p.Background);
+            ThemeRoot.Background = background;
+            RootGrid.Background = background;
+            RootGrid.BorderBrush = Palette.Brush(p.Border);
+            TitleText.Foreground = Palette.Brush(p.Primary);
+            TitleIcon.Foreground = Palette.Brush(p.Secondary);
+            LowIcon.Foreground = Palette.Brush(p.Secondary);
+            HighIcon.Foreground = Palette.Brush(p.Secondary);
+            VolumeText.Foreground = Palette.Brush(p.Primary);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not apply the volume pop-up theme", ex);
+        }
+    }
 
     /// <summary>Shows the card for the current default output.</summary>
     public void ShowFor(string deviceName)
@@ -87,7 +79,7 @@ public sealed partial class OutputPopupWindow : Window
         ReadVolume();
         // Same screen edge as the battery pop-up, but centred so the two never cover each other.
         WindowHelpers.PlacePopup(this, RootGrid, LogicalWidth, LogicalHeight, settings.PopupSize,
-            PopupLayout.CentreHorizontally(settings.PopupPosition));
+            PopupLayout.CentreHorizontally(settings.PopupPosition), cornerRadius: 24);
 
         if (!_visible)
         {

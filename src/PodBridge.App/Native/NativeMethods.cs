@@ -39,6 +39,7 @@ internal static class NativeMethods
 
     // DWM
     public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    public const int DWMWCP_DONOTROUND = 1;
     public const int DWMWCP_ROUND = 2;
 
     public delegate IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
@@ -140,6 +141,17 @@ internal static class NativeMethods
 
     [DllImport("user32.dll")]
     public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint uFlags);
+
+    /// <summary>Makes a rounded-rectangle region. The width and height are those of the rounded corner's ellipse.</summary>
+    [DllImport("gdi32.dll")]
+    public static extern IntPtr CreateRoundRectRgn(int left, int top, int right, int bottom, int widthEllipse, int heightEllipse);
+
+    /// <summary>Clips the window to a region. On success the system owns the region handle.</summary>
+    [DllImport("user32.dll")]
+    public static extern int SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool redraw);
+
+    [DllImport("gdi32.dll")]
+    public static extern bool DeleteObject(IntPtr hObject);
 
     [DllImport("user32.dll")]
     public static extern uint GetDpiForWindow(IntPtr hWnd);

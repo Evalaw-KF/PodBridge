@@ -1,14 +1,11 @@
 using Microsoft.UI.Dispatching;
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using PodBridge.App.Native;
 using PodBridge.App.Services;
 using PodBridge.Core.Bluetooth;
 using PodBridge.Core.Settings;
 using PodBridge.Core.State;
-using Windows.Graphics;
 
 namespace PodBridge.App.Views;
 
@@ -18,8 +15,8 @@ namespace PodBridge.App.Views;
 /// </summary>
 public sealed partial class PopupWindow : Window
 {
-    private const int LogicalWidth = 340;
-    private const int LogicalHeight = 130;
+    private const int LogicalWidth = 360;
+    private const int LogicalHeight = 200;
     private static readonly TimeSpan VisibleFor = TimeSpan.FromSeconds(6);
 
     private readonly IntPtr _hwnd;
@@ -30,53 +27,57 @@ public sealed partial class PopupWindow : Window
     {
         InitializeComponent();
 
-        _hwnd = WindowHelpers.GetHandle(this);
-        SystemBackdrop = new DesktopAcrylicBackdrop();
+        // No acrylic: shown without activation it falls back to a light colour, under text that follows the dark theme.
+        // The card paints its own solid, theme-aware background instead (see ApplyTheme).
+        _hwnd = WindowHelpers.ConfigurePopupWindow(this);
 
-        var presenter = OverlappedPresenter.Create();
-        presenter.IsAlwaysOnTop = true;
-        presenter.IsResizable = false;
-        presenter.IsMaximizable = false;
-        presenter.IsMinimizable = false;
-        presenter.SetBorderAndTitleBar(false, false);
-        AppWindow.SetPresenter(presenter);
-        AppWindow.IsShownInSwitchers = false;
-
-        // Tool window + no-activate: no taskbar button, and it never steals focus.
-        long style = NativeMethods.GetWindowLongPtr(_hwnd, NativeMethods.GWL_EXSTYLE).ToInt64();
-        style |= NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_NOACTIVATE;
-        NativeMethods.SetWindowLongPtr(_hwnd, NativeMethods.GWL_EXSTYLE, new IntPtr(style));
-
-        // Rounded corners on Windows 11 (ignored on Windows 10).
-        int round = NativeMethods.DWMWCP_ROUND;
-        NativeMethods.DwmSetWindowAttribute(_hwnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
+        LeftRing.Configure(62, 6, 15, 12);
+        RightRing.Configure(62, 6, 15, 12);
+        CaseRing.Configure(62, 6, 15, 12);
+        ApplyTheme(ThemePreference.System);
 
         _hideTimer = this.DispatcherQueue.CreateTimer();
         _hideTimer.IsRepeating = false;
         _hideTimer.Interval = VisibleFor;
         _hideTimer.Tick += (_, _) => Hide();
 
-        AppWindow.Closing += (sender, args) =>
-        {
-            if (!App.Host.IsExiting)
-            {
-                args.Cancel = true;
-                Hide();
-            }
-        };
+        WindowHelpers.HideInsteadOfClose(this, Hide);
     }
 
-    public void ApplyTheme(ThemePreference preference) =>
-        WindowHelpers.ApplyTheme(RootGrid, preference);
+    /// <summary>
+    /// Sets an explicit Light/Dark theme on the content root and paints the card, border, text and rings from the
+    /// matching solid palette, so the colours never depend on the system backdrop or on an inherited theme.
+    /// </summary>
+    public void ApplyTheme(ThemePreference preference)
+    {
+        try
+        {
+            var p = WindowHelpers.ApplyPopupTheme(ThemeRoot, preference);
+            var background = Palette.Brush(p.Background);
+            ThemeRoot.Background = background;
+            RootGrid.Background = background;
+            RootGrid.BorderBrush = Palette.Brush(p.Border);
+            TitleText.Foreground = Palette.Brush(p.Primary);
+            DefaultArt.ApplyPalette(p);
+            LeftRing.ApplyPalette(p);
+            RightRing.ApplyPalette(p);
+            CaseRing.ApplyPalette(p);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not apply the pop-up theme", ex);
+        }
+    }
 
     public void ShowFor(DeviceSnapshot snapshot)
     {
         var settings = App.Host.Settings;
-        // Re-apply the theme every time so the pop-up always matches the Settings choice.
+        // Re-apply the theme every time so the pop-up always matches the Settings choice and the Windows app mode.
         ApplyTheme(settings.Theme);
         Fill(snapshot);
         CustomPictureService.ApplyTo(PictureImage, settings.CustomPictureFile);
-        WindowHelpers.PlacePopup(this, RootGrid, LogicalWidth, LogicalHeight, settings.PopupSize, settings.PopupPosition);
+        DefaultArt.Visibility = PictureImage.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+        WindowHelpers.PlacePopup(this, RootGrid, LogicalWidth, LogicalHeight, settings.PopupSize, settings.PopupPosition, cornerRadius: 24);
 
         if (!_visible)
         {
@@ -112,21 +113,17 @@ public sealed partial class PopupWindow : Window
         TitleText.Text = s.DisplayName;
         if (s.Kind == DeviceKind.Headphones)
         {
-            LeftLabel.Text = s.LeftCharging ? "Battery (charging)" : "Battery";
-            LeftValue.Text = Format.Percent(s.LeftBattery);
-            RightValue.Text = string.Empty;
-            RightLabel.Text = string.Empty;
-            CaseValue.Text = string.Empty;
-            CaseLabel.Text = string.Empty;
+            LeftRing.Set("Battery", s.LeftBattery, s.LeftCharging);
+            RightRing.Visibility = Visibility.Collapsed;
+            CaseRing.Visibility = Visibility.Collapsed;
             return;
         }
 
-        LeftValue.Text = Format.Percent(s.LeftBattery);
-        RightValue.Text = Format.Percent(s.RightBattery);
-        CaseValue.Text = Format.Percent(s.CaseBattery);
-        LeftLabel.Text = s.LeftCharging ? "Left (charging)" : "Left";
-        RightLabel.Text = s.RightCharging ? "Right (charging)" : "Right";
-        CaseLabel.Text = s.CaseCharging ? "Case (charging)" : "Case";
+        RightRing.Visibility = Visibility.Visible;
+        CaseRing.Visibility = Visibility.Visible;
+        LeftRing.Set("Left", s.LeftBattery, s.LeftCharging);
+        RightRing.Set("Right", s.RightBattery, s.RightCharging);
+        CaseRing.Set("Case", s.CaseBattery, s.CaseCharging);
     }
 
     private void RootGrid_PointerPressed(object sender, PointerRoutedEventArgs e) => Hide();

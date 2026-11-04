@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using PodBridge.App.Native;
+using Microsoft.Win32;
 using PodBridge.Core.Display;
 using PodBridge.Core.Settings;
 using Windows.Graphics;
@@ -53,37 +54,125 @@ internal static class WindowHelpers
     }
 
     /// <summary>
-    /// Sizes and places a pop-up window. The content is laid out at its normal logical size inside a Viewbox, which
-    /// scales it to the chosen pop-up size, so text and controls grow or shrink together with the window.
-    /// (A RenderTransform on the window's root would not work for "Small": the layout clip is applied before
-    /// the transform, so the right and bottom of the card would be cut off.)
+    /// Reads the Windows "app mode" (1 = light, 0 = dark). Null if it cannot be read.
+    /// ElementTheme.Default is not trusted for the pop-ups: they are shown without being activated,
+    /// and the theme can then resolve differently from the text colours that were chosen for it.
     /// </summary>
-    public static void PlacePopup(Window window, FrameworkElement root, int logicalWidth, int logicalHeight,
-        PopupSize size, PopupPosition position)
+    public static int? ReadAppsUseLightTheme()
     {
         try
         {
-            if (ReferenceEquals(window.Content, root))
+            using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            return key?.GetValue("AppsUseLightTheme") as int?;
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not read the Windows app mode", ex);
+            return null;
+        }
+    }
+
+    public static bool ResolveDark(ThemePreference preference) =>
+        ThemeResolver.IsDark(preference, ReadAppsUseLightTheme());
+
+    /// <summary>
+    /// Sets an explicit Light or Dark theme on the window's content root (never Default) and returns the
+    /// matching solid palette, which the pop-up applies to its card and text.
+    /// </summary>
+    public static PopupPalette ApplyPopupTheme(FrameworkElement? contentRoot, ThemePreference preference)
+    {
+        bool dark = ResolveDark(preference);
+        if (contentRoot is not null)
+        {
+            contentRoot.RequestedTheme = dark ? ElementTheme.Dark : ElementTheme.Light;
+        }
+        return PopupPalette.For(dark);
+    }
+
+    /// <summary>
+    /// Common set-up for the small always-on-top cards: no border or title bar, no taskbar button, never takes focus,
+    /// no system backdrop (the card paints its own solid background) and square window corners, because the card's
+    /// rounded corners are cut out with a window region in <see cref="PlacePopup"/>.
+    /// </summary>
+    public static IntPtr ConfigurePopupWindow(Window window)
+    {
+        IntPtr hwnd = GetHandle(window);
+
+        var presenter = OverlappedPresenter.Create();
+        presenter.IsAlwaysOnTop = true;
+        presenter.IsResizable = false;
+        presenter.IsMaximizable = false;
+        presenter.IsMinimizable = false;
+        presenter.SetBorderAndTitleBar(false, false);
+        window.AppWindow.SetPresenter(presenter);
+        window.AppWindow.IsShownInSwitchers = false;
+
+        long style = NativeMethods.GetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE).ToInt64();
+        style |= NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_NOACTIVATE;
+        NativeMethods.SetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE, new IntPtr(style));
+
+        int noRound = NativeMethods.DWMWCP_DONOTROUND;
+        NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref noRound, sizeof(int));
+        return hwnd;
+    }
+
+    /// <summary>Wires the "closing only hides" behaviour shared by the pop-ups.</summary>
+    public static void HideInsteadOfClose(Window window, Action hide) =>
+        window.AppWindow.Closing += (sender, args) =>
+        {
+            if (!App.Host.IsExiting)
             {
-                window.Content = null;
-                window.Content = new Viewbox { Stretch = Stretch.Fill, Child = root };
+                args.Cancel = true;
+                hide();
             }
+        };
+
+    /// <summary>
+    /// Sizes and places a pop-up window. The window's content is a Viewbox (Stretch.Fill) around the fixed-size card
+    /// <paramref name="root"/>, so the card is laid out at its normal logical size and then scaled with the window:
+    /// text and controls grow or shrink together. (A RenderTransform on the root would not work for "Small": the layout
+    /// clip is applied before the transform, so the right and bottom of the card would be cut off.)
+    /// The window is clipped to a rounded rectangle so the card's corners are really round.
+    /// </summary>
+    public static void PlacePopup(Window window, FrameworkElement root, int logicalWidth, int logicalHeight,
+        PopupSize size, PopupPosition position, double cornerRadius = 24)
+    {
+        try
+        {
             root.Width = logicalWidth;
             root.Height = logicalHeight;
         }
         catch (Exception ex)
         {
-            Log.Error("Could not scale the pop-up", ex);
+            Log.Error("Could not size the pop-up card", ex);
         }
 
         // Two passes: moving onto the primary monitor can change the window's DPI, and Windows may then resize it;
         // the second pass puts the size back.
+        PixelRect rect = default;
+        double scale = 1.0;
         for (int pass = 0; pass < 2; pass++)
         {
             var work = DisplayArea.Primary.WorkArea;
-            var rect = PopupLayout.Compute(size, position, logicalWidth, logicalHeight,
-                new PixelRect(work.X, work.Y, work.Width, work.Height), GetPrimaryScale(window));
+            scale = GetPrimaryScale(window);
+            rect = PopupLayout.Compute(size, position, logicalWidth, logicalHeight,
+                new PixelRect(work.X, work.Y, work.Width, work.Height), scale);
             window.AppWindow.MoveAndResize(new RectInt32(rect.X, rect.Y, rect.Width, rect.Height));
+        }
+
+        try
+        {
+            // One logical pixel more than the card's radius, so the cut sits just inside the card's own curve.
+            int diameter = (int)Math.Round((cornerRadius + 1) * 2 * PopupLayout.SizeFactor(size) * scale);
+            IntPtr region = NativeMethods.CreateRoundRectRgn(0, 0, rect.Width + 1, rect.Height + 1, diameter, diameter);
+            if (region != IntPtr.Zero && NativeMethods.SetWindowRgn(GetHandle(window), region, true) == 0)
+            {
+                NativeMethods.DeleteObject(region); // the system only takes ownership when the call succeeds
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not round the pop-up corners", ex);
         }
     }
 }
