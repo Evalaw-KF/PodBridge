@@ -38,6 +38,9 @@ public sealed class AppSettings
     /// <summary>Endpoint id of the speaker to fall back to. Empty means "the output used before the AirPods".</summary>
     public string FallbackEndpointId { get; set; } = string.Empty;
     public bool OutputPopupEnabled { get; set; } = true;
+
+    /// <summary>Show a small banner when the AirPods audio connects or disconnects.</summary>
+    public bool ShowConnectionBanner { get; set; } = true;
     public bool KeepAliveEnabled { get; set; } = true;
 
     // Phase 2: hotkeys (text such as "Ctrl+Alt+A"; empty means not assigned)
@@ -93,6 +96,7 @@ public sealed class AppSettings
         AutoSwitchOutput = AutoSwitchOutput,
         FallbackEndpointId = FallbackEndpointId ?? string.Empty,
         OutputPopupEnabled = OutputPopupEnabled,
+        ShowConnectionBanner = ShowConnectionBanner,
         KeepAliveEnabled = KeepAliveEnabled,
         HotkeysEnabled = HotkeysEnabled,
         ConnectHotkey = NormalizeHotkey(ConnectHotkey, Hotkey.DefaultConnect),
