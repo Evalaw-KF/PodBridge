@@ -162,7 +162,12 @@ public sealed partial class MainPage : Page
         var toggle = host.ConnectionToggle;
         ConnectToggleButton.Content = toggle.Label;
         ConnectToggleButton.IsEnabled = toggle.Enabled;
-        ConnectToggleButton.Style = (Style)Application.Current.Resources[toggle.Accent ? "AccentButtonStyle" : "DefaultButtonStyle"];
+        // null reverts to the default button style; only look up the accent style.
+        ConnectToggleButton.Style = toggle.Accent
+            && Application.Current.Resources.TryGetValue("AccentButtonStyle", out var accent)
+            && accent is Style accentStyle
+                ? accentStyle
+                : null;
         SwitchOutputButton.IsEnabled = host.CanChangeConnection;
     }
 
