@@ -6,39 +6,47 @@
     xmlns:local="using:PodBridge.App.Views">
 
     <ScrollViewer>
-        <StackPanel Padding="24,8,24,24" Spacing="16">
+        <StackPanel Padding="24,8,24,28" Spacing="20">
 
-            <Grid ColumnSpacing="14">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Image x:Name="PictureImage" Grid.Column="0" Width="64" Height="64" Stretch="UniformToFill"
-                       Visibility="Collapsed" VerticalAlignment="Center" />
-                <FontIcon x:Name="DefaultPicture" Grid.Column="0" Glyph="&#xE7F6;" FontSize="40"
-                          VerticalAlignment="Center" Opacity="0.7" />
-                <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
-                    <TextBlock x:Name="DeviceName" Style="{StaticResource TitleTextBlockStyle}"
-                               TextWrapping="Wrap" Text="Looking for your AirPods" />
-                    <TextBlock x:Name="StatusText" Opacity="0.7" TextWrapping="Wrap"
-                               Style="{StaticResource BodyTextBlockStyle}" />
-                </StackPanel>
-            </Grid>
+            <!-- Header card: picture or illustration, name, connection pill, battery rings. -->
+            <Border x:Name="HeaderCard" Style="{StaticResource CardBorderStyle}" CornerRadius="28" Padding="24,28,24,26">
+                <StackPanel Spacing="14">
+                    <Grid Height="88">
+                        <Image x:Name="PictureImage" Height="88" Stretch="Uniform" Visibility="Collapsed"
+                               HorizontalAlignment="Center" />
+                        <local:PodsArt x:Name="DefaultPicture" Height="88" HorizontalAlignment="Center" />
+                    </Grid>
 
-            <Border Style="{StaticResource CardBorderStyle}">
-                <StackPanel Spacing="22">
-                    <local:BatteryRow x:Name="LeftRow" />
-                    <local:BatteryRow x:Name="RightRow" />
-                    <local:BatteryRow x:Name="CaseRow" />
+                    <TextBlock x:Name="DeviceName" Style="{StaticResource TitleTextBlockStyle}" FontWeight="SemiBold"
+                               TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"
+                               Text="Looking for your AirPods" />
+
+                    <Border x:Name="StatusPill" HorizontalAlignment="Center" CornerRadius="999" Padding="12,5,14,5">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Ellipse x:Name="StatusDot" Width="9" Height="9" VerticalAlignment="Center" />
+                            <TextBlock x:Name="StatusPillText" Text="Not connected" FontSize="13" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock x:Name="StatusText" Opacity="0.7" TextWrapping="Wrap" TextAlignment="Center"
+                               HorizontalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" />
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="26" Margin="0,10,0,0">
+                        <local:BatteryRing x:Name="LeftRing" />
+                        <local:BatteryRing x:Name="RightRing" />
+                        <local:BatteryRing x:Name="CaseRing" />
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
             <Border Style="{StaticResource CardBorderStyle}">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Audio" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <StackPanel Spacing="14">
+                    <TextBlock Text="Audio" Style="{StaticResource SubtitleTextBlockStyle}" />
                     <TextBlock x:Name="AudioStatusText" TextWrapping="Wrap" Opacity="0.8" />
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button x:Name="ConnectButton" Content="Connect" Click="ConnectButton_Click" />
+                        <Button x:Name="ConnectButton" Content="Connect" Style="{StaticResource AccentButtonStyle}"
+                                Click="ConnectButton_Click" />
                         <Button x:Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click" />
                         <Button x:Name="SwitchOutputButton" Content="Switch output" Click="SwitchOutputButton_Click" />
                     </StackPanel>
@@ -48,8 +56,8 @@
             </Border>
 
             <Border Style="{StaticResource CardBorderStyle}">
-                <StackPanel Spacing="6">
-                    <TextBlock Text="Tips" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Tips" Style="{StaticResource SubtitleTextBlockStyle}" />
                     <TextBlock TextWrapping="Wrap" Opacity="0.8"
                                Text="Open the case lid near your PC, or put an earbud in your ear, and PodBridge will pick up the battery levels. Nothing needs to be paired with this app." />
                 </StackPanel>
