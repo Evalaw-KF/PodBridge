@@ -279,6 +279,7 @@ internal sealed class AppHost
     private void StartReader()
     {
         _reader = new NotificationReader(_dispatcher, () => Settings, () => _ear.StableCount, OnNotificationSeen);
+        _reader.AccessLost += () => SettingsChanged?.Invoke();
         _reader.Apply();
     }
 

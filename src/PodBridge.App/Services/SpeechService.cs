@@ -17,6 +17,7 @@ internal sealed class SpeechService : IDisposable
     private bool _pumping;
     private bool _disposed;
     private MediaPlayer? _player;
+    private TaskCompletionSource? _current; // completes when the utterance playing now ends or is stopped
 
     public string VoiceId { get; set; } = string.Empty;
     public int RatePercent { get; set; } = 100;
@@ -60,6 +61,15 @@ internal sealed class SpeechService : IDisposable
         try
         {
             _player?.Pause();
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not stop speech", ex);
+        }
+        // Pausing raises no MediaEnded, so release the queue now instead of after the 60-second safety limit.
+        try
+        {
+            _current?.TrySetResult();
         }
         catch (Exception ex)
         {
@@ -114,6 +124,7 @@ internal sealed class SpeechService : IDisposable
         };
         player.Source = source;
         _player = player;
+        _current = done;
         try
         {
             player.Play();
@@ -122,6 +133,7 @@ internal sealed class SpeechService : IDisposable
         finally
         {
             _player = null;
+            _current = null;
         }
     }
 

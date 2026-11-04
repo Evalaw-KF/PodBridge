@@ -120,8 +120,12 @@ internal sealed class SpeakerService : IDisposable
         catch (Exception ex)
         {
             Log.Error("Could not enable speaker mode for a device", ex);
+            bool stillWanted = _connections.ContainsKey(id); // false if Disable was pressed while it was starting
             DropConnection(id);
-            Fail(id, "Could not enable this device. Make sure it is paired and Bluetooth is on.");
+            if (stillWanted)
+            {
+                Fail(id, "Could not enable this device. Make sure it is paired and Bluetooth is on.");
+            }
         }
     }
 

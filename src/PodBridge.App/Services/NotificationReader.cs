@@ -32,6 +32,9 @@ internal sealed class NotificationReader : IDisposable
     public NotificationListenerService Listener { get; } = new();
     public SpeechService Speech { get; } = new();
 
+    /// <summary>Raised (on the UI thread) when reading stopped because Windows no longer lets the app read notifications.</summary>
+    public event Action? AccessLost;
+
     /// <summary>Call at start-up and whenever settings change.</summary>
     public void Apply()
     {
@@ -78,6 +81,7 @@ internal sealed class NotificationReader : IDisposable
             if (current is null)
             {
                 Apply(); // access was lost: stop polling
+                AccessLost?.Invoke(); // so Settings shows why
                 return;
             }
 
