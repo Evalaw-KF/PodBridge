@@ -6,7 +6,9 @@ using PodBridge.Core.Alerts;
 using PodBridge.Core.Audio;
 using PodBridge.Core.Bluetooth;
 using PodBridge.Core.Ear;
+using PodBridge.Core.Notifications;
 using PodBridge.Core.Settings;
+using PodBridge.Core.Speaker;
 using PodBridge.Core.State;
 
 namespace PodBridge.App;
@@ -39,6 +41,10 @@ internal sealed class AppHost
     private string? _lastDefaultId;
     private bool _connectionBusy;
 
+    // Phase 4
+    private NotificationReader? _reader;
+    private SpeakerService? _speaker;
+
     private TrayIcon? _tray;
     private MainWindow? _mainWindow;
     private PopupWindow? _popupWindow;
@@ -66,6 +72,18 @@ internal sealed class AppHost
     public AdvertLog AdvertLog => _advertLog;
 
     public AudioService Audio => _audio;
+
+    /// <summary>Notification reading (listener + speech); null if it could not be created.</summary>
+    public NotificationReader? Reader => _reader;
+
+    /// <summary>Speaker mode (this PC as a Bluetooth speaker); null if it could not be created.</summary>
+    public SpeakerService? Speaker => _speaker;
+
+    /// <summary>Handle of the main window, for file pickers. Zero if there is none.</summary>
+    public IntPtr MainWindowHandle => _mainWindow is null ? IntPtr.Zero : WindowHelpers.GetHandle(_mainWindow);
+
+    /// <summary>Raised when the list of apps seen in notifications grows.</summary>
+    public event Action? SeenAppsChanged;
     public HotkeyService? Hotkeys => _hotkeys;
 
     /// <summary>One-line description of the AirPods audio link and the current output, for the main page.</summary>
@@ -118,6 +136,8 @@ internal sealed class AppHost
         _hotkeys.Apply(Settings);
 
         Guard("Audio start-up", StartAudio);
+        Guard("Notification reader start-up", StartReader);
+        Guard("Speaker mode start-up", StartSpeaker);
 
         _scanner.AdvertReceived += (advert, rssi) =>
             _dispatcher.TryEnqueue(() => OnAdvert(advert, rssi));
@@ -216,6 +236,7 @@ internal sealed class AppHost
         ApplyPolicySettings();
         _hotkeys?.Apply(Settings);
         Guard("Audio refresh", RefreshAudioState);
+        Guard("Notification reader", () => _reader?.Apply());
         SettingsChanged?.Invoke();
     }
 
@@ -249,6 +270,90 @@ internal sealed class AppHost
         _lastDefaultId = ctx.DefaultId;
         _switch.ObserveDefault(ctx);
         ApplyAudioState(ctx);
+    }
+
+    // ------------------------------------------------------------------
+    // Phase 4: read notifications aloud, speaker mode, custom picture
+    // ------------------------------------------------------------------
+
+    private void StartReader()
+    {
+        _reader = new NotificationReader(_dispatcher, () => Settings, () => _ear.StableCount, OnNotificationSeen);
+        _reader.Apply();
+    }
+
+    private void StartSpeaker()
+    {
+        _speaker = new SpeakerService(_dispatcher, () => Settings.AutoEnableSpeakerDevices);
+        _speaker.Start();
+    }
+
+    private void OnNotificationSeen(NotificationInfo info)
+    {
+        var updated = Settings.Normalized();
+        if (!SeenApps.Record(updated.NotificationSeenApps, info.AppId, info.AppName))
+        {
+            return;
+        }
+        Settings = updated;
+        try
+        {
+            _store.Save(Settings);
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not save the list of notification apps", ex);
+        }
+        SeenAppsChanged?.Invoke();
+    }
+
+    /// <summary>Shows Windows' permission prompt for reading notifications, then re-applies the settings.</summary>
+    public async Task RequestNotificationAccessAsync()
+    {
+        try
+        {
+            if (_reader is not null)
+            {
+                await _reader.Listener.RequestAccessAsync();
+                _reader.Apply();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Notification access request failed", ex);
+        }
+        SettingsChanged?.Invoke();
+    }
+
+    /// <summary>Lets the user pick a headphone picture. Returns an error message to show, or null.</summary>
+    public async Task<string?> ChangePictureAsync()
+    {
+        var (fileName, error) = await CustomPictureService.PickAndImportAsync(MainWindowHandle);
+        if (fileName is null)
+        {
+            return error;
+        }
+        var updated = Settings.Normalized();
+        updated.CustomPictureFile = fileName;
+        UpdateSettings(updated);
+        CustomPictureService.Cleanup(fileName);
+        return null;
+    }
+
+    public void ResetPicture()
+    {
+        var updated = Settings.Normalized();
+        updated.CustomPictureFile = string.Empty;
+        UpdateSettings(updated);
+        CustomPictureService.Cleanup(null);
+    }
+
+    /// <summary>Adds or removes a speaker-mode device from the auto-enable list.</summary>
+    public void SetSpeakerAutoEnable(string id, bool on)
+    {
+        var updated = Settings.Normalized();
+        updated.AutoEnableSpeakerDevices = SpeakerAutoEnable.Toggle(updated.AutoEnableSpeakerDevices, id, on);
+        UpdateSettings(updated);
     }
 
     private OutputContext BuildContext() =>
@@ -551,6 +656,9 @@ internal sealed class AppHost
         _popupWindow?.ShowFor(snapshot);
     }
 
+    public void SpeakTest() =>
+        Guard("Test speech", () => _reader?.Speech.Speak("This is PodBridge. Your notifications will sound like this."));
+
     public void ShowTestNotification() =>
         _notifications.Show("PodBridge test", "If you can read this, low-battery alerts will work.");
 
@@ -566,6 +674,8 @@ internal sealed class AppHost
         _earTimer.Stop();
         _endpointsTimer.Stop();
         _hotkeys?.Dispose();
+        _reader?.Dispose();
+        _speaker?.Dispose();
         _keepAlive.Dispose();
         _audio.Dispose();
         _scanner.Dispose();

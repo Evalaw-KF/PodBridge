@@ -1,5 +1,6 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using PodBridge.App.Services;
 using PodBridge.Core.Bluetooth;
 using PodBridge.Core.State;
 
@@ -13,9 +14,21 @@ public sealed partial class MainPage : Page
         Loaded += (_, _) =>
         {
             App.Host.StateChanged += Refresh;
+            App.Host.SettingsChanged += RefreshPicture;
             Refresh();
+            RefreshPicture();
         };
-        Unloaded += (_, _) => App.Host.StateChanged -= Refresh;
+        Unloaded += (_, _) =>
+        {
+            App.Host.StateChanged -= Refresh;
+            App.Host.SettingsChanged -= RefreshPicture;
+        };
+    }
+
+    private void RefreshPicture()
+    {
+        CustomPictureService.ApplyTo(PictureImage, App.Host.Settings.CustomPictureFile);
+        DefaultPicture.Visibility = PictureImage.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void Refresh()
@@ -71,6 +84,9 @@ public sealed partial class MainPage : Page
     private void DisconnectButton_Click(object sender, RoutedEventArgs e) => App.Host.RequestDisconnect();
 
     private void SwitchOutputButton_Click(object sender, RoutedEventArgs e) => App.Host.RequestSwitchOutput();
+
+    private void SpeakerButton_Click(object sender, RoutedEventArgs e) =>
+        Frame.Navigate(typeof(SpeakerPage));
 
     private void SettingsButton_Click(object sender, RoutedEventArgs e) =>
         Frame.Navigate(typeof(SettingsPage));

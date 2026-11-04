@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="PodBridge.App.Views.SpeakerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <ScrollViewer>
+        <StackPanel Padding="24,8,24,24" Spacing="16">
+
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <Button x:Name="BackButton" Content="Back" Click="BackButton_Click" />
+                <TextBlock Text="Speaker mode" Style="{StaticResource TitleTextBlockStyle}"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+
+            <TextBlock TextWrapping="Wrap" Opacity="0.8"
+                       Text="Play sound from your phone through this PC. Pair the phone with this PC in Windows Bluetooth settings first, enable it below, then choose this PC as the Bluetooth speaker on the phone (or press Open here)." />
+
+            <TextBlock x:Name="StatusText" TextWrapping="Wrap" Opacity="0.7"
+                       Style="{StaticResource CaptionTextBlockStyle}" />
+
+            <StackPanel x:Name="DevicesPanel" Spacing="12" />
+
+            <TextBlock TextWrapping="Wrap" Opacity="0.6" Style="{StaticResource CaptionTextBlockStyle}"
+                       Text="Tick &quot;Enable automatically&quot; for a device and PodBridge enables it whenever PodBridge starts and the device is paired. Sound plays through your current default output." />
+        </StackPanel>
+    </ScrollViewer>
+</Page>
