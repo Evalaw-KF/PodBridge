@@ -10,8 +10,12 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <TextBlock x:Name="TitleText" Grid.Row="0" Style="{StaticResource BodyStrongTextBlockStyle}"
-                   TextTrimming="CharacterEllipsis" />
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
+            <Image x:Name="PictureImage" Width="28" Height="28" Stretch="UniformToFill"
+                   Visibility="Collapsed" VerticalAlignment="Center" />
+            <TextBlock x:Name="TitleText" Style="{StaticResource BodyStrongTextBlockStyle}"
+                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+        </StackPanel>
 
         <Grid Grid.Row="1" Margin="0,10,0,0" ColumnSpacing="8">
             <Grid.ColumnDefinitions>

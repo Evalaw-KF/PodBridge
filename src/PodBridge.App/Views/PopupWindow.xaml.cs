@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using PodBridge.App.Native;
+using PodBridge.App.Services;
 using PodBridge.Core.Bluetooth;
 using PodBridge.Core.Settings;
 using PodBridge.Core.State;
@@ -19,7 +20,6 @@ public sealed partial class PopupWindow : Window
 {
     private const int LogicalWidth = 340;
     private const int LogicalHeight = 130;
-    private const int LogicalMargin = 16;
     private static readonly TimeSpan VisibleFor = TimeSpan.FromSeconds(6);
 
     private readonly IntPtr _hwnd;
@@ -71,8 +71,12 @@ public sealed partial class PopupWindow : Window
 
     public void ShowFor(DeviceSnapshot snapshot)
     {
+        var settings = App.Host.Settings;
+        // Re-apply the theme every time so the pop-up always matches the Settings choice.
+        ApplyTheme(settings.Theme);
         Fill(snapshot);
-        PositionBottomRight();
+        CustomPictureService.ApplyTo(PictureImage, settings.CustomPictureFile);
+        WindowHelpers.PlacePopup(this, RootGrid, LogicalWidth, LogicalHeight, settings.PopupSize, settings.PopupPosition);
 
         if (!_visible)
         {
@@ -123,23 +127,6 @@ public sealed partial class PopupWindow : Window
         LeftLabel.Text = s.LeftCharging ? "Left (charging)" : "Left";
         RightLabel.Text = s.RightCharging ? "Right (charging)" : "Right";
         CaseLabel.Text = s.CaseCharging ? "Case (charging)" : "Case";
-    }
-
-    private void PositionBottomRight()
-    {
-        // Two passes: the first may run at the DPI of the wrong monitor, the second corrects it.
-        for (int pass = 0; pass < 2; pass++)
-        {
-            double scale = WindowHelpers.GetScale(this);
-            int width = (int)(LogicalWidth * scale);
-            int height = (int)(LogicalHeight * scale);
-            int margin = (int)(LogicalMargin * scale);
-
-            var work = DisplayArea.Primary.WorkArea;
-            int x = work.X + work.Width - width - margin;
-            int y = work.Y + work.Height - height - margin;
-            AppWindow.MoveAndResize(new RectInt32(x, y, width, height));
-        }
     }
 
     private void RootGrid_PointerPressed(object sender, PointerRoutedEventArgs e) => Hide();

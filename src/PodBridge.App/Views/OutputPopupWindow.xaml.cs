@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using PodBridge.App.Native;
+using PodBridge.Core.Display;
 using PodBridge.Core.Settings;
 using Windows.Graphics;
 
@@ -19,7 +20,6 @@ public sealed partial class OutputPopupWindow : Window
 {
     private const int LogicalWidth = 340;
     private const int LogicalHeight = 112;
-    private const int LogicalMargin = 16;
     private static readonly TimeSpan IdleHideAfter = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan VolumePollEvery = TimeSpan.FromMilliseconds(300);
 
@@ -81,9 +81,13 @@ public sealed partial class OutputPopupWindow : Window
     /// <summary>Shows the card for the current default output.</summary>
     public void ShowFor(string deviceName)
     {
+        var settings = App.Host.Settings;
+        ApplyTheme(settings.Theme);
         TitleText.Text = deviceName;
         ReadVolume();
-        PositionBottomCenter();
+        // Same screen edge as the battery pop-up, but centred so the two never cover each other.
+        WindowHelpers.PlacePopup(this, RootGrid, LogicalWidth, LogicalHeight, settings.PopupSize,
+            PopupLayout.CentreHorizontally(settings.PopupPosition));
 
         if (!_visible)
         {
@@ -156,21 +160,4 @@ public sealed partial class OutputPopupWindow : Window
     }
 
     private void RootGrid_PointerMoved(object sender, PointerRoutedEventArgs e) => RestartHideTimer();
-
-    private void PositionBottomCenter()
-    {
-        // Two passes: the first may run at the DPI of the wrong monitor, the second corrects it.
-        for (int pass = 0; pass < 2; pass++)
-        {
-            double scale = WindowHelpers.GetScale(this);
-            int width = (int)(LogicalWidth * scale);
-            int height = (int)(LogicalHeight * scale);
-            int margin = (int)(LogicalMargin * scale);
-
-            var work = DisplayArea.Primary.WorkArea;
-            int x = work.X + (work.Width - width) / 2;
-            int y = work.Y + work.Height - height - margin;
-            AppWindow.MoveAndResize(new RectInt32(x, y, width, height));
-        }
-    }
 }
