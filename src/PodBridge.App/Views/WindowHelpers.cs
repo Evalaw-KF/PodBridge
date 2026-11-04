@@ -91,8 +91,8 @@ internal static class WindowHelpers
 
     /// <summary>
     /// Common set-up for the small always-on-top cards: no border or title bar, no taskbar button, never takes focus,
-    /// no system backdrop (the card paints its own solid background) and square window corners, because the card's
-    /// rounded corners are cut out with a window region in <see cref="PlacePopup"/>.
+    /// no system backdrop (the card paints its own solid background). The corners are rounded by Windows 11 itself
+    /// (antialiased, DWMWCP_ROUND); the card fills the window with square corners and no border of its own.
     /// </summary>
     public static IntPtr ConfigurePopupWindow(Window window)
     {
@@ -120,15 +120,39 @@ internal static class WindowHelpers
 
         try
         {
-            // Fails harmlessly (non-zero HRESULT) before Windows 11; the window region below still rounds the card.
-            int noRound = NativeMethods.DWMWCP_DONOTROUND;
-            NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref noRound, sizeof(int));
+            // Fails harmlessly (non-zero HRESULT) before Windows 11, where the pop-up simply has square corners.
+            int round = NativeMethods.DWMWCP_ROUND;
+            NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_WINDOW_CORNER_PREFERENCE, ref round, sizeof(int));
         }
         catch (Exception ex)
         {
-            Log.Error("Could not turn off the system corner rounding", ex);
+            Log.Error("Could not turn on the system corner rounding", ex);
         }
         return hwnd;
+    }
+
+    /// <summary>
+    /// Paints the system's 1px window outline in the card's own colour, so no light edge shows at the rounded corners.
+    /// Falls back to "no border" if the colour is not accepted. Fail-soft: errors are only logged.
+    /// </summary>
+    public static void SetPopupBorderColour(Window window, PopupPalette palette)
+    {
+        try
+        {
+            IntPtr hwnd = GetHandle(window);
+            // COLORREF is 0x00BBGGRR.
+            var (r, g, b) = Contrast.Parse(palette.Background);
+            int colour = r | (g << 8) | (b << 16);
+            if (NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_BORDER_COLOR, ref colour, sizeof(int)) != 0)
+            {
+                int none = NativeMethods.DWMWA_COLOR_NONE;
+                NativeMethods.DwmSetWindowAttribute(hwnd, NativeMethods.DWMWA_BORDER_COLOR, ref none, sizeof(int));
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not set the pop-up border colour", ex);
+        }
     }
 
     /// <summary>Wires the "closing only hides" behaviour shared by the pop-ups.</summary>
@@ -147,10 +171,10 @@ internal static class WindowHelpers
     /// <paramref name="root"/>, so the card is laid out at its normal logical size and then scaled with the window:
     /// text and controls grow or shrink together. (A RenderTransform on the root would not work for "Small": the layout
     /// clip is applied before the transform, so the right and bottom of the card would be cut off.)
-    /// The window is clipped to a rounded rectangle so the card's corners are really round.
+    /// The card has square corners and fills the window; Windows 11 rounds the window itself.
     /// </summary>
     public static void PlacePopup(Window window, FrameworkElement root, int logicalWidth, int logicalHeight,
-        PopupSize size, PopupPosition position, double cornerRadius = 24)
+        PopupSize size, PopupPosition position)
     {
         try
         {
@@ -180,30 +204,6 @@ internal static class WindowHelpers
         catch (Exception ex)
         {
             Log.Error("Could not place the pop-up", ex);
-        }
-
-        try
-        {
-            // The region is in physical pixels, relative to the window's top-left corner. Use the size Windows really
-            // gave the window (it can differ from the one asked for, e.g. a minimum size), so the cut matches the card.
-            var actual = window.AppWindow.Size;
-            int width = actual.Width > 0 ? actual.Width : rect.Width;
-            int height = actual.Height > 0 ? actual.Height : rect.Height;
-            if (width <= 0 || height <= 0)
-            {
-                return;
-            }
-            // One logical pixel more than the card's radius, so the cut sits just inside the card's own curve.
-            int diameter = (int)Math.Round((cornerRadius + 1) * 2 * PopupLayout.SizeFactor(size) * scale);
-            IntPtr region = NativeMethods.CreateRoundRectRgn(0, 0, width + 1, height + 1, diameter, diameter);
-            if (region != IntPtr.Zero && NativeMethods.SetWindowRgn(GetHandle(window), region, true) == 0)
-            {
-                NativeMethods.DeleteObject(region); // the system only takes ownership when the call succeeds
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error("Could not round the pop-up corners", ex);
         }
     }
 }

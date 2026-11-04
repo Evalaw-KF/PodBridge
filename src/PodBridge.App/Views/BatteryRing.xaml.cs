@@ -72,7 +72,7 @@ public sealed partial class BatteryRing : UserControl
             DetailText.Foreground = Palette.Brush(p.Secondary);
             BoltIcon.Foreground = Palette.Brush(p.Good);
 
-            ValueText.Text = Format.Percent(_percent);
+            ValueText.Text = BatteryText.Percent(_percent);
             LabelText.Text = _label;
             BoltIcon.Visibility = _charging && _percent is not null ? Visibility.Visible : Visibility.Collapsed;
             DetailText.Text = _detail ?? string.Empty;
@@ -80,8 +80,9 @@ public sealed partial class BatteryRing : UserControl
 
             double centre = _diameter / 2;
             double radius = Math.Max(1, (_diameter - _thickness) / 2);
-            var arc = RingGeometry.ForPercent(centre, centre, radius, _percent ?? 0);
-            if (_percent is null || arc.IsEmpty)
+            int? fill = BatteryText.RingFill(_percent);
+            var arc = RingGeometry.ForPercent(centre, centre, radius, fill ?? 0);
+            if (fill is null || arc.IsEmpty)
             {
                 ArcPath.Data = null;
                 ArcPath.Visibility = Visibility.Collapsed;

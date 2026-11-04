@@ -41,6 +41,8 @@ internal sealed class AppHost
     private readonly DispatcherQueueTimer _endpointsTimer;
     private string? _lastDefaultId;
     private bool _connectionBusy;
+    private readonly PendingConnection _pending = new();
+    private readonly DispatcherQueueTimer _pendingTimer;
 
     // Phase 4
     private NotificationReader? _reader;
@@ -61,6 +63,10 @@ internal sealed class AppHost
         _refreshTimer = dispatcher.CreateTimer();
         _earTimer = dispatcher.CreateTimer();
         _endpointsTimer = dispatcher.CreateTimer();
+        _pendingTimer = dispatcher.CreateTimer();
+        _pendingTimer.IsRepeating = false;
+        _pendingTimer.Interval = PendingConnection.DefaultTimeout + TimeSpan.FromMilliseconds(200);
+        _pendingTimer.Tick += (_, _) => Guard("Pending connection", () => StateChanged?.Invoke());
         _bluetooth = new BluetoothAudioControl(_audio);
         _keepAlive = new KeepAliveService(_audio);
         ApplyPolicySettings();
@@ -90,6 +96,10 @@ internal sealed class AppHost
 
     /// <summary>True while an AirPods audio endpoint is active (connected to Windows).</summary>
     public bool PodsConnected { get; private set; }
+
+    /// <summary>What the single Connect / Disconnect button (and the tray item) should show right now.</summary>
+    public ToggleView ConnectionToggle =>
+        ToggleView.For(PodsConnected, _pending.Current(PodsConnected, DateTimeOffset.UtcNow), CanChangeConnection);
 
     /// <summary>One-line description of the AirPods audio link and the current output, for the main page.</summary>
     public string AudioStatus { get; private set; } = string.Empty;
@@ -138,6 +148,7 @@ internal sealed class AppHost
         _tray.OpenRequested += ShowMainWindow;
         _tray.SettingsRequested += ShowSettings;
         _tray.ExitRequested += Exit;
+        _tray.ConnectionToggleProvider = () => (PodsConnected, ConnectionToggle);
         _tray.ConnectRequested += RequestConnect;
         _tray.DisconnectRequested += RequestDisconnect;
         _tray.SwitchOutputRequested += RequestSwitchOutput;
@@ -401,18 +412,8 @@ internal sealed class AppHost
         PodsConnected = pods is { IsActive: true };
         _connection.Observe(PodsConnected, DateTimeOffset.UtcNow);
         var current = ctx.Find(ctx.DefaultId)?.Name;
-        if (pods is null)
-        {
-            AudioStatus = $"No audio device with \"{Settings.HeadphoneNameMatch}\" in its name was found. Pair your AirPods in Windows Bluetooth settings first.";
-        }
-        else if (pods.IsActive)
-        {
-            AudioStatus = $"Audio connected: {pods.Name}. Current output: {current ?? "none"}.";
-        }
-        else
-        {
-            AudioStatus = $"Audio not connected: {pods.Name}. Current output: {current ?? "none"}.";
-        }
+        AudioStatus = AudioStatusText.Build(pods is not null, PodsConnected, pods?.Name, current, ctx.DefaultIsAirPods,
+            Settings.HeadphoneNameMatch);
         CanChangeConnection = pods is not null && !_connectionBusy;
     }
 
@@ -607,14 +608,20 @@ internal sealed class AppHost
 
         _connectionBusy = true;
         CanChangeConnection = false;
-        SetAudioMessage(connect ? "Connecting…" : "Disconnecting…");
+        _pending.Begin(connect, DateTimeOffset.UtcNow);
+        _pendingTimer.Stop();
+        _pendingTimer.Start();
+        SetAudioMessage(string.Empty);
         try
         {
             string id = pods.Id;
             string? error = await Task.Run(() => connect ? _bluetooth.Connect(id) : _bluetooth.Disconnect(id));
-            SetAudioMessage(error ?? (connect
-                ? "Connection requested. It can take a few seconds."
-                : "Disconnected."), notify);
+            if (error is not null)
+            {
+                _pending.Clear();
+            }
+            // Success needs no message: the button and the status line show the result when it happens.
+            SetAudioMessage(error ?? string.Empty, notify && error is not null);
         }
         finally
         {
@@ -718,6 +725,7 @@ internal sealed class AppHost
         _refreshTimer.Stop();
         _earTimer.Stop();
         _endpointsTimer.Stop();
+        _pendingTimer.Stop();
         _hotkeys?.Dispose();
         _reader?.Dispose();
         _speaker?.Dispose();

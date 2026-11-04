@@ -5,16 +5,40 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:PodBridge.App.Views">
 
-    <ScrollViewer>
-        <StackPanel Padding="24,8,24,28" Spacing="20">
+    <!--
+      Landscape layout. Wide: a left card (picture, name, status pill) beside the battery rings and the Audio card.
+      Narrow: the same cards stacked in one column (MainPage.xaml.cs moves them when the page is narrower than
+      WideBreakpoint). The ScrollViewer scrolls vertically only, so nothing is ever clipped at the sides.
+    -->
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid x:Name="LayoutRoot" Padding="24,4,24,20" MaxWidth="1000" HorizontalAlignment="Stretch"
+              SizeChanged="LayoutRoot_SizeChanged">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="LeftColumn" Width="*" />
+                <ColumnDefinition x:Name="RightColumn" Width="0" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-            <!-- Header card: picture or illustration, name, connection pill, battery rings. -->
-            <Border x:Name="HeaderCard" Style="{StaticResource CardBorderStyle}" CornerRadius="28" Padding="24,28,24,26">
-                <StackPanel Spacing="14">
-                    <Grid Height="88">
-                        <Image x:Name="PictureImage" Height="88" Stretch="Uniform" Visibility="Collapsed"
+            <!-- Small buttons in the header. -->
+            <StackPanel x:Name="ToolbarPanel" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                        Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,0,0,12">
+                <Button x:Name="SpeakerButton" Content="Speaker mode" Click="SpeakerButton_Click" />
+                <Button x:Name="SettingsButton" Content="Settings" Click="SettingsButton_Click" />
+            </StackPanel>
+
+            <!-- Left: picture or illustration, device name, status pill. -->
+            <Border x:Name="HeaderCard" Grid.Row="1" Grid.Column="0" Style="{StaticResource CardBorderStyle}"
+                    CornerRadius="28" Padding="20,24,20,20" Margin="0,0,0,16">
+                <StackPanel Spacing="12" VerticalAlignment="Center">
+                    <Grid Height="112">
+                        <Image x:Name="PictureImage" Height="112" Stretch="Uniform" Visibility="Collapsed"
                                HorizontalAlignment="Center" />
-                        <local:PodsArt x:Name="DefaultPicture" Height="88" HorizontalAlignment="Center" />
+                        <local:PodsArt x:Name="DefaultPicture" Height="112" HorizontalAlignment="Center" />
                     </Grid>
 
                     <TextBlock x:Name="DeviceName" Style="{StaticResource TitleTextBlockStyle}" FontWeight="SemiBold"
@@ -32,41 +56,40 @@
                     <TextBlock x:Name="StatusText" Opacity="0.7" TextWrapping="Wrap" TextAlignment="Center"
                                HorizontalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" />
 
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="26" Margin="0,10,0,0">
+                    <TextBlock Opacity="0.55" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"
+                               Style="{StaticResource CaptionTextBlockStyle}" Margin="0,6,0,0"
+                               Text="Open the case lid or put a bud in your ear to read the battery." />
+                </StackPanel>
+            </Border>
+
+            <!-- Right, top: the three battery rings. -->
+            <Border x:Name="RingsCard" Grid.Row="2" Grid.Column="0" Style="{StaticResource CardBorderStyle}"
+                    CornerRadius="28" Padding="20,24,20,20" Margin="0,0,0,16">
+                <!-- DownOnly: if the window gets very narrow the rings shrink together instead of being cut off. -->
+                <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="28">
                         <local:BatteryRing x:Name="LeftRing" />
                         <local:BatteryRing x:Name="RightRing" />
                         <local:BatteryRing x:Name="CaseRing" />
                     </StackPanel>
-                </StackPanel>
+                </Viewbox>
             </Border>
 
-            <Border Style="{StaticResource CardBorderStyle}">
-                <StackPanel Spacing="14">
+            <!-- Right, bottom: Audio card with one Connect / Disconnect button. -->
+            <Border x:Name="AudioCard" Grid.Row="3" Grid.Column="0" Style="{StaticResource CardBorderStyle}"
+                    Padding="20,16,20,16">
+                <StackPanel Spacing="10">
                     <TextBlock Text="Audio" Style="{StaticResource SubtitleTextBlockStyle}" />
-                    <TextBlock x:Name="AudioStatusText" TextWrapping="Wrap" Opacity="0.8" />
+                    <TextBlock x:Name="AudioStatusText" TextWrapping="Wrap" Opacity="0.85" />
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button x:Name="ConnectButton" Content="Connect" Style="{StaticResource AccentButtonStyle}"
-                                Click="ConnectButton_Click" />
-                        <Button x:Name="DisconnectButton" Content="Disconnect" Click="DisconnectButton_Click" />
+                        <Button x:Name="ConnectToggleButton" Content="Connect" MinWidth="130"
+                                Click="ConnectToggleButton_Click" />
                         <Button x:Name="SwitchOutputButton" Content="Switch output" Click="SwitchOutputButton_Click" />
                     </StackPanel>
                     <TextBlock x:Name="AudioMessageText" TextWrapping="Wrap" Opacity="0.7"
                                Style="{StaticResource CaptionTextBlockStyle}" />
                 </StackPanel>
             </Border>
-
-            <Border Style="{StaticResource CardBorderStyle}">
-                <StackPanel Spacing="8">
-                    <TextBlock Text="Tips" Style="{StaticResource SubtitleTextBlockStyle}" />
-                    <TextBlock TextWrapping="Wrap" Opacity="0.8"
-                               Text="Open the case lid near your PC, or put an earbud in your ear, and PodBridge will pick up the battery levels. Nothing needs to be paired with this app." />
-                </StackPanel>
-            </Border>
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Button x:Name="SpeakerButton" Content="Speaker mode" Click="SpeakerButton_Click" />
-                <Button x:Name="SettingsButton" Content="Settings" Click="SettingsButton_Click" />
-            </StackPanel>
-        </StackPanel>
+        </Grid>
     </ScrollViewer>
 </Page>

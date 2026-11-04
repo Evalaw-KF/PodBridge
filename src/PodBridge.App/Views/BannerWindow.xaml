@@ -8,7 +8,7 @@
     <Grid x:Name="ThemeRoot">
         <Viewbox x:Name="ScaleBox" Stretch="Fill">
             <Grid x:Name="RootGrid" Width="340" Height="76" Padding="16,0,20,0"
-                  CornerRadius="24" BorderThickness="1" PointerPressed="RootGrid_PointerPressed">
+                  PointerPressed="RootGrid_PointerPressed">
                 <Grid ColumnSpacing="14" VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />

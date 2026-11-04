@@ -12,9 +12,9 @@ public sealed partial class MainPage : Page
     public MainPage()
     {
         InitializeComponent();
-        LeftRing.Configure(88, 8, 20, 14);
-        RightRing.Configure(88, 8, 20, 14);
-        CaseRing.Configure(88, 8, 20, 14);
+        LeftRing.Configure(84, 8, 20, 14);
+        RightRing.Configure(84, 8, 20, 14);
+        CaseRing.Configure(84, 8, 20, 14);
         ActualThemeChanged += (_, _) => Refresh();
         Loaded += (_, _) =>
         {
@@ -28,6 +28,58 @@ public sealed partial class MainPage : Page
             App.Host.StateChanged -= Refresh;
             App.Host.SettingsChanged -= RefreshPicture;
         };
+    }
+
+    /// <summary>Page width (logical px) from which the cards sit side by side.</summary>
+    private const double WideBreakpoint = 640;
+
+    private bool? _wide;
+
+    private void LayoutRoot_SizeChanged(object sender, SizeChangedEventArgs e) => ApplyLayout(e.NewSize.Width);
+
+    /// <summary>Side by side when wide (left card spans the two right-hand cards), one column when narrow.</summary>
+    private void ApplyLayout(double width)
+    {
+        try
+        {
+            bool wide = width >= WideBreakpoint;
+            if (_wide == wide)
+            {
+                return;
+            }
+            _wide = wide;
+            if (wide)
+            {
+                LeftColumn.Width = new GridLength(300);
+                RightColumn.Width = new GridLength(1, GridUnitType.Star);
+                Place(HeaderCard, row: 1, column: 0, rowSpan: 2);
+                Place(RingsCard, row: 1, column: 1, rowSpan: 1);
+                Place(AudioCard, row: 2, column: 1, rowSpan: 1);
+                HeaderCard.Margin = new Thickness(0, 0, 16, 0);
+                RingsCard.Margin = new Thickness(0, 0, 0, 16);
+            }
+            else
+            {
+                LeftColumn.Width = new GridLength(1, GridUnitType.Star);
+                RightColumn.Width = new GridLength(0);
+                Place(HeaderCard, row: 1, column: 0, rowSpan: 1);
+                Place(RingsCard, row: 2, column: 0, rowSpan: 1);
+                Place(AudioCard, row: 3, column: 0, rowSpan: 1);
+                HeaderCard.Margin = new Thickness(0, 0, 0, 16);
+                RingsCard.Margin = new Thickness(0, 0, 0, 16);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not lay out the main page", ex);
+        }
+    }
+
+    private static void Place(FrameworkElement element, int row, int column, int rowSpan)
+    {
+        Grid.SetRow(element, row);
+        Grid.SetColumn(element, column);
+        Grid.SetRowSpan(element, rowSpan);
     }
 
     private void RefreshPicture()
@@ -107,14 +159,25 @@ public sealed partial class MainPage : Page
         AudioStatusText.Text = host.AudioStatus;
         AudioMessageText.Text = host.AudioMessage;
         AudioMessageText.Visibility = string.IsNullOrEmpty(host.AudioMessage) ? Visibility.Collapsed : Visibility.Visible;
-        ConnectButton.IsEnabled = host.CanChangeConnection;
-        DisconnectButton.IsEnabled = host.CanChangeConnection;
+        var toggle = host.ConnectionToggle;
+        ConnectToggleButton.Content = toggle.Label;
+        ConnectToggleButton.IsEnabled = toggle.Enabled;
+        ConnectToggleButton.Style = (Style)Application.Current.Resources[toggle.Accent ? "AccentButtonStyle" : "DefaultButtonStyle"];
         SwitchOutputButton.IsEnabled = host.CanChangeConnection;
     }
 
-    private void ConnectButton_Click(object sender, RoutedEventArgs e) => App.Host.RequestConnect();
-
-    private void DisconnectButton_Click(object sender, RoutedEventArgs e) => App.Host.RequestDisconnect();
+    private void ConnectToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        // Decide from the live state, so a click right after a change does the sensible thing.
+        if (App.Host.PodsConnected)
+        {
+            App.Host.RequestDisconnect();
+        }
+        else
+        {
+            App.Host.RequestConnect();
+        }
+    }
 
     private void SwitchOutputButton_Click(object sender, RoutedEventArgs e) => App.Host.RequestSwitchOutput();
 

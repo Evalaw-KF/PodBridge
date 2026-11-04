@@ -1,6 +1,7 @@
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
+using PodBridge.Core.Display;
 using PodBridge.Core.Settings;
 using Windows.Graphics;
 
@@ -23,8 +24,19 @@ public sealed partial class MainWindow : Window
             AppWindow.SetIcon(iconPath);
         }
 
-        double scale = WindowHelpers.GetScale(this);
-        AppWindow.Resize(new SizeInt32((int)(440 * scale), (int)(720 * scale)));
+        // Landscape, like Apple's AirPods screen: 820 x 460 logical pixels, scaled for the display, kept inside the work area.
+        try
+        {
+            double scale = WindowHelpers.GetScale(this);
+            var work = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
+            var (width, height) = MainWindowSize.Compute(scale, work.Width, work.Height);
+            AppWindow.Resize(new SizeInt32(width, height));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Could not size the main window", ex);
+            AppWindow.Resize(new SizeInt32(820, 460));
+        }
 
         // Closing the window only hides it; PodBridge keeps running in the tray until "Exit".
         AppWindow.Closing += (sender, args) =>

@@ -5,7 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <ScrollViewer>
-        <StackPanel Padding="24,8,24,24" Spacing="16">
+        <StackPanel Padding="24,8,24,24" Spacing="16" MaxWidth="760" HorizontalAlignment="Stretch">
 
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <Button x:Name="BackButton" Content="Back" Click="BackButton_Click" />

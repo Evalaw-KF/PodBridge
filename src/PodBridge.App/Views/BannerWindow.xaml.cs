@@ -46,7 +46,7 @@ public sealed partial class BannerWindow : Window
             var background = Palette.Brush(p.Background);
             ThemeRoot.Background = background;
             RootGrid.Background = background;
-            RootGrid.BorderBrush = Palette.Brush(p.Border);
+            WindowHelpers.SetPopupBorderColour(this, p);
             GlyphDisc.Background = Palette.Brush(p.Track);
             Bud.ApplyPalette(new PopupPalette(p.Track, p.Border, p.Primary, p.Secondary, p.Track, p.Good, p.Warning,
                 p.Critical, p.Secondary));
@@ -69,7 +69,7 @@ public sealed partial class BannerWindow : Window
         StateDot.Fill = Palette.Brush(connected ? _palette.Good : _palette.Secondary);
 
         WindowHelpers.PlacePopup(this, RootGrid, LogicalWidth, LogicalHeight, settings.PopupSize,
-            PopupLayout.OppositeEdgeCentre(settings.PopupPosition), cornerRadius: 24);
+            PopupLayout.OppositeEdgeCentre(settings.PopupPosition));
 
         if (!_visible)
         {

@@ -56,7 +56,7 @@ public sealed partial class PopupWindow : Window
             var background = Palette.Brush(p.Background);
             ThemeRoot.Background = background;
             RootGrid.Background = background;
-            RootGrid.BorderBrush = Palette.Brush(p.Border);
+            WindowHelpers.SetPopupBorderColour(this, p);
             TitleText.Foreground = Palette.Brush(p.Primary);
             DefaultArt.ApplyPalette(p);
             LeftRing.ApplyPalette(p);
@@ -77,7 +77,7 @@ public sealed partial class PopupWindow : Window
         Fill(snapshot);
         CustomPictureService.ApplyTo(PictureImage, settings.CustomPictureFile);
         DefaultArt.Visibility = PictureImage.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-        WindowHelpers.PlacePopup(this, RootGrid, LogicalWidth, LogicalHeight, settings.PopupSize, settings.PopupPosition, cornerRadius: 24);
+        WindowHelpers.PlacePopup(this, RootGrid, LogicalWidth, LogicalHeight, settings.PopupSize, settings.PopupPosition);
 
         if (!_visible)
         {

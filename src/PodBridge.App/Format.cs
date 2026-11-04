@@ -7,7 +7,7 @@ namespace PodBridge.App;
 /// <summary>Text helpers shared by the tray, window and pop-up.</summary>
 internal static class Format
 {
-    public static string Percent(int? value) => value is int v ? $"{v}%" : "–";
+    public static string Percent(int? value) => PodBridge.Core.Display.BatteryText.Percent(value);
 
     public static string Tooltip(DeviceSnapshot? s)
     {

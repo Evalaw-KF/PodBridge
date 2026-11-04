@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using PodBridge.App.Native;
+using PodBridge.Core.Audio;
 using static PodBridge.App.Native.NativeMethods;
 
 namespace PodBridge.App.Tray;
@@ -13,7 +14,7 @@ internal sealed class TrayIcon : IDisposable
 {
     private const uint CallbackMessage = WM_APP + 1;
     private const uint IconId = 1;
-    private const int CmdOpen = 1, CmdSettings = 2, CmdExit = 3, CmdConnect = 4, CmdDisconnect = 5, CmdSwitch = 6;
+    private const int CmdOpen = 1, CmdSettings = 2, CmdExit = 3, CmdToggle = 4, CmdSwitch = 6;
     private const string ClassName = "PodBridgeTrayWindow";
 
     private readonly WndProc _wndProc;   // field keeps the delegate alive for the native window
@@ -30,6 +31,9 @@ internal sealed class TrayIcon : IDisposable
     public event Action? ConnectRequested;
     public event Action? DisconnectRequested;
     public event Action? SwitchOutputRequested;
+
+    /// <summary>Supplies the connection state and the label of the single Connect / Disconnect item when the menu opens.</summary>
+    public Func<(bool Connected, ToggleView View)>? ConnectionToggleProvider { get; set; }
 
     /// <summary>Raised for WM_HOTKEY; the argument is the hotkey id passed to RegisterHotKey.</summary>
     public event Action<int>? HotkeyPressed;
@@ -154,8 +158,21 @@ internal sealed class TrayIcon : IDisposable
             AppendMenuW(menu, MF_STRING, new UIntPtr(CmdOpen), "Open PodBridge");
             AppendMenuW(menu, MF_STRING, new UIntPtr(CmdSettings), "Settings");
             AppendMenuW(menu, MF_SEPARATOR, UIntPtr.Zero, null);
-            AppendMenuW(menu, MF_STRING, new UIntPtr(CmdConnect), "Connect AirPods");
-            AppendMenuW(menu, MF_STRING, new UIntPtr(CmdDisconnect), "Disconnect AirPods");
+            bool connected = false;
+            var toggle = new ToggleView("Connect AirPods", true, true);
+            try
+            {
+                if (ConnectionToggleProvider is { } provider)
+                {
+                    (connected, toggle) = provider();
+                    toggle = toggle with { Label = toggle.Label.EndsWith('…') ? toggle.Label : $"{toggle.Label} AirPods" };
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Could not read the connection state for the tray menu", ex);
+            }
+            AppendMenuW(menu, MF_STRING | (toggle.Enabled ? 0u : MF_GRAYED), new UIntPtr(CmdToggle), toggle.Label);
             AppendMenuW(menu, MF_STRING, new UIntPtr(CmdSwitch), "Switch output (AirPods / speakers)");
             AppendMenuW(menu, MF_SEPARATOR, UIntPtr.Zero, null);
             AppendMenuW(menu, MF_STRING, new UIntPtr(CmdExit), "Exit");
@@ -171,8 +188,9 @@ internal sealed class TrayIcon : IDisposable
             {
                 case CmdOpen: OpenRequested?.Invoke(); break;
                 case CmdSettings: SettingsRequested?.Invoke(); break;
-                case CmdConnect: ConnectRequested?.Invoke(); break;
-                case CmdDisconnect: DisconnectRequested?.Invoke(); break;
+                case CmdToggle:
+                    if (connected) { DisconnectRequested?.Invoke(); } else { ConnectRequested?.Invoke(); }
+                    break;
                 case CmdSwitch: SwitchOutputRequested?.Invoke(); break;
                 case CmdExit: ExitRequested?.Invoke(); break;
             }

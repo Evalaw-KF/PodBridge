@@ -12,7 +12,7 @@
     <Grid x:Name="ThemeRoot">
         <Viewbox x:Name="ScaleBox" Stretch="Fill">
             <Grid x:Name="RootGrid" Width="360" Height="200" Padding="20,16,20,14"
-                  CornerRadius="24" BorderThickness="1" PointerPressed="RootGrid_PointerPressed">
+                  PointerPressed="RootGrid_PointerPressed">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />

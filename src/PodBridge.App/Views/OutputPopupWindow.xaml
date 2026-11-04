@@ -7,7 +7,6 @@
     <Grid x:Name="ThemeRoot">
         <Viewbox x:Name="ScaleBox" Stretch="Fill">
             <Grid x:Name="RootGrid" Width="360" Height="112" Padding="22,14,22,14"
-                  CornerRadius="24" BorderThickness="1"
                   PointerEntered="RootGrid_PointerEntered"
                   PointerExited="RootGrid_PointerExited"
                   PointerMoved="RootGrid_PointerMoved">

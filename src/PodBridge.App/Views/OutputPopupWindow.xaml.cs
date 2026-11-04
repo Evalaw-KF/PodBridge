@@ -57,7 +57,7 @@ public sealed partial class OutputPopupWindow : Window
             var background = Palette.Brush(p.Background);
             ThemeRoot.Background = background;
             RootGrid.Background = background;
-            RootGrid.BorderBrush = Palette.Brush(p.Border);
+            WindowHelpers.SetPopupBorderColour(this, p);
             TitleText.Foreground = Palette.Brush(p.Primary);
             TitleIcon.Foreground = Palette.Brush(p.Secondary);
             LowIcon.Foreground = Palette.Brush(p.Secondary);
@@ -79,7 +79,7 @@ public sealed partial class OutputPopupWindow : Window
         ReadVolume();
         // Same screen edge as the battery pop-up, but centred so the two never cover each other.
         WindowHelpers.PlacePopup(this, RootGrid, LogicalWidth, LogicalHeight, settings.PopupSize,
-            PopupLayout.CentreHorizontally(settings.PopupPosition), cornerRadius: 24);
+            PopupLayout.CentreHorizontally(settings.PopupPosition));
 
         if (!_visible)
         {
